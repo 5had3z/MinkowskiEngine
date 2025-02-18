@@ -1,0 +1,3 @@
+{
+    "C_Cpp.default.configurationProvider": "${workspaceFolder}/build/Debug/compile_commands.json"
+}

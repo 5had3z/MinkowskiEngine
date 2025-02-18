@@ -1,45 +1,3 @@
-r"""
-Parse additional arguments along with the setup.py arguments such as install, build, distribute, sdist, etc.
-
-
-Usage:
-
-  python setup.py install <additional_flags>..<additional_flags> <additional_arg>=<value>..<additional_arg>=<value>
-
-  export CC=<C++ compiler>; python setup.py install <additional_flags>..<additional_flags> <additional_arg>=<value>..<additional_arg>=<value>
-
-
-Examples:
-
-  python setup.py install --force_cuda --cuda_home=/usr/local/cuda
-  export CC=g++7; python setup.py install --force_cuda --cuda_home=/usr/local/cuda
-
-
-Additional flags:
-
-  --cpu_only: Force building only a CPU version. However, if
-      torch.cuda.is_available() is False, it will default to CPU_ONLY.
-
-  --force_cuda: If torch.cuda.is_available() is false, but you have a working
-      nvcc, compile cuda files. --force_cuda will supercede --cpu_only.
-
-
-Additional arguments:
-
-  --blas=<value> : type of blas library to use for CPU matrix multiplications.
-      Options: [openblas, mkl, atlas, blas]. By default, it will use the first
-      numpy blas library it finds.
-
-  --cuda_home=<value> : a directory that contains <value>/bin/nvcc and
-      <value>/lib64/libcudart.so. By default, use
-      `torch.utils.cpp_extension._find_cuda_home()`.
-
-  --blas_include_dirs=<comma_separated_values> : additional include dirs. Only
-      activated when --blas=<value> is set.
-
-  --blas_library_dirs=<comma_separated_values> : additional library dirs. Only
-      activated when --blas=<value> is set.
-"""
 import sys
 
 if sys.version_info < (3, 6):
@@ -57,7 +15,6 @@ import codecs
 import os
 import re
 import subprocess
-import warnings
 from pathlib import Path
 from sys import argv, platform
 
@@ -66,7 +23,7 @@ from torch.utils.cpp_extension import BuildExtension, CppExtension, CUDAExtensio
 
 if platform == "win32":
     raise ImportError("Windows is currently not supported.")
-elif platform == "darwin":
+if platform == "darwin":
     # Set the distutils to use clang instead of g++ for valid std
     if "CC" not in os.environ:
         os.environ["CC"] = "/usr/local/opt/llvm/bin/clang"
@@ -91,54 +48,15 @@ def run_command(*args):
     subprocess.check_call(args)
 
 
-def _argparse(pattern, argv, is_flag=True, is_list=False):
-    if is_flag:
-        found = pattern in argv
-        if found:
-            argv.remove(pattern)
-        return found, argv
-    else:
-        arr = [arg for arg in argv if pattern == arg.split("=")[0]]
-        if is_list:
-            if len(arr) == 0:  # not found
-                return False, argv
-            else:
-                assert "=" in arr[0], f"{arr[0]} requires a value."
-                argv.remove(arr[0])
-                val = arr[0].split("=")[1]
-                if "," in val:
-                    return val.split(","), argv
-                else:
-                    return [val], argv
-        else:
-            if len(arr) == 0:  # not found
-                return False, argv
-            else:
-                assert "=" in arr[0], f"{arr[0]} requires a value."
-                argv.remove(arr[0])
-                return arr[0].split("=")[1], argv
-
-
 run_command("rm", "-rf", "build")
 run_command("pip", "uninstall", "MinkowskiEngine", "-y")
 
-# For cpu only build
-CPU_ONLY, argv = _argparse("--cpu_only", argv)
-FORCE_CUDA, argv = _argparse("--force_cuda", argv)
-if not torch.cuda.is_available() and not FORCE_CUDA:
-    warnings.warn(
-        "torch.cuda.is_available() is False. MinkowskiEngine will compile with CPU_ONLY. Please use `--force_cuda` to compile with CUDA."
-    )
 
-CPU_ONLY = CPU_ONLY or not torch.cuda.is_available()
-if FORCE_CUDA:
-    CPU_ONLY = False
+CPU_ONLY = False 
+FORCE_CUDA = True
+
 
 # args with return value
-CUDA_HOME, argv = _argparse("--cuda_home", argv, False)
-BLAS, argv = _argparse("--blas", argv, False)
-BLAS_INCLUDE_DIRS, argv = _argparse("--blas_include_dirs", argv, False, is_list=True)
-BLAS_LIBRARY_DIRS, argv = _argparse("--blas_library_dirs", argv, False, is_list=True)
 MAX_COMPILATION_THREADS = 12
 
 Extension = CUDAExtension
@@ -160,8 +78,6 @@ else:
     # system python installation
     libraries.append("cusparse")
 
-if not (CUDA_HOME is False):  # False when not set, str otherwise
-    print(f"Using CUDA_HOME={CUDA_HOME}")
 
 if sys.platform == "win32":
     vc_version = os.getenv("VCToolsVersion", "")
@@ -176,43 +92,6 @@ if "darwin" in platform:
     CC_FLAGS += ["-stdlib=libc++", "-std=c++17"]
 
 NVCC_FLAGS += ["--expt-relaxed-constexpr", "--expt-extended-lambda"]
-FAST_MATH, argv = _argparse("--fast_math", argv)
-if FAST_MATH:
-    NVCC_FLAGS.append("--use_fast_math")
-
-BLAS_LIST = ["flexiblas", "openblas", "mkl", "atlas", "blas"]
-if not (BLAS is False):  # False only when not set, str otherwise
-    assert BLAS in BLAS_LIST, f"Blas option {BLAS} not in valid options {BLAS_LIST}"
-    if BLAS == "mkl":
-        libraries.append("mkl_rt")
-        CC_FLAGS.append("-DUSE_MKL")
-        NVCC_FLAGS.append("-DUSE_MKL")
-    else:
-        libraries.append(BLAS)
-    if not (BLAS_INCLUDE_DIRS is False):
-        include_dirs += BLAS_INCLUDE_DIRS
-    if not (BLAS_LIBRARY_DIRS is False):
-        extra_link_args += [f"-Wl,-rpath,{BLAS_LIBRARY_DIRS}"]
-else:
-    # find the default BLAS library
-    import numpy.distutils.system_info as sysinfo
-
-    # Search blas in this order
-    for blas in BLAS_LIST:
-        if "libraries" in sysinfo.get_info(blas):
-            BLAS = blas
-            libraries += sysinfo.get_info(blas)["libraries"]
-            break
-    else:
-        # BLAS not found
-        raise ImportError(
-            ' \
-\nBLAS not found from numpy.distutils.system_info.get_info. \
-\nPlease specify BLAS with: python setup.py install --blas=openblas" \
-\nfor more information, please visit https://github.com/NVIDIA/MinkowskiEngine/wiki/Installation'
-        )
-
-print(f"\nUsing BLAS={BLAS}")
 
 # The Ninja cannot compile the files that have the same name with different
 # extensions correctly and uses the nvcc/CC based on the extension. Import a
@@ -268,7 +147,6 @@ SOURCE_SETS = {
     ],
 }
 
-debug, argv = _argparse("--debug", argv)
 
 HERE = Path(os.path.dirname(__file__)).absolute()
 SRC_PATH = HERE / "src"
@@ -286,12 +164,9 @@ if "CC" in os.environ or "CXX" in os.environ:
 else:
     print("Using the default compiler")
 
-if debug:
-    CC_FLAGS += ["-g", "-DDEBUG"]
-    NVCC_FLAGS += ["-g", "-DDEBUG", "-Xcompiler=-fno-gnu-unique"]
-else:
-    CC_FLAGS += ["-O3"]
-    NVCC_FLAGS += ["-O3", "-Xcompiler=-fno-gnu-unique"]
+
+CC_FLAGS += ["-O3"]
+NVCC_FLAGS += ["-O3", "-Xcompiler=-fno-gnu-unique"]
 
 if "MAX_JOBS" not in os.environ and os.cpu_count() > MAX_COMPILATION_THREADS:
     # Clip the num compilation thread to 8

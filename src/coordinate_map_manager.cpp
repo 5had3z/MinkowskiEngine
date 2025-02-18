@@ -34,6 +34,8 @@
 #include <string>
 #include <unordered_map>
 
+#include <thrust/addressof.h>
+
 namespace py = pybind11;
 
 namespace minkowski {
