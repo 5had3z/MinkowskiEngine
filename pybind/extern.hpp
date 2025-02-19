@@ -32,9 +32,9 @@
 #include "types.hpp"
 #include "utils.hpp"
 
-#ifndef CPU_ONLY
-#include "allocators.cuh"
-#include "coordinate_map_gpu.cuh"
+#ifdef __CUDACC__
+// #include "allocators.cuh"
+// #include "coordinate_map_gpu.cuh"
 #include <cuda.h>
 #endif
 
@@ -80,7 +80,7 @@ ConvolutionBackwardCPU(at::Tensor const &in_feat,                         //
                        CoordinateMapKey *p_out_map_key,                   //
                        cpu_manager_type<coordinate_type> *p_map_manager);
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 template <typename coordinate_type,
           template <typename C> class TemplatedAllocator>
 at::Tensor ConvolutionForwardGPU(
@@ -178,7 +178,7 @@ std::pair<at::Tensor, at::Tensor> ConvolutionTransposeBackwardCPU(
     CoordinateMapKey *p_out_map_key,                   //
     cpu_manager_type<coordinate_type> *p_map_manager);
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 template <typename coordinate_type,
           template <typename C> class TemplatedAllocator>
 at::Tensor ConvolutionTransposeForwardGPU(
@@ -243,7 +243,7 @@ LocalPoolingBackwardCPU(at::Tensor const &in_feat,                         //
                         CoordinateMapKey *p_out_map_key,                   //
                         cpu_manager_type<coordinate_type> *p_map_manager);
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 template <typename coordinate_type,
           template <typename C> class TemplatedAllocator>
 std::pair<at::Tensor, at::Tensor> LocalPoolingForwardGPU(
@@ -307,7 +307,7 @@ at::Tensor LocalPoolingTransposeBackwardCPU(
     CoordinateMapKey *p_out_map_key,                   //
     cpu_manager_type<coordinate_type> *p_map_manager);
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 template <typename coordinate_type,
           template <typename C> class TemplatedAllocator>
 std::pair<at::Tensor, at::Tensor> LocalPoolingTransposeForwardGPU(
@@ -360,7 +360,7 @@ GlobalPoolingBackwardCPU(at::Tensor const &in_feat, at::Tensor &grad_out_feat,
                          CoordinateMapKey *p_out_map_key,      //
                          cpu_manager_type<coordinate_type> *p_map_manager);
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 template <typename coordinate_type,
           template <typename C> class TemplatedAllocator>
 std::tuple<at::Tensor, at::Tensor> GlobalPoolingForwardGPU(
@@ -402,7 +402,7 @@ BroadcastBackwardCPU(at::Tensor const &in_feat, at::Tensor const &in_feat_glob,
                      CoordinateMapKey *p_glob_map_key, //
                      cpu_manager_type<coordinate_type> *p_map_manager);
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 template <typename coordinate_type,
           template <typename C> class TemplatedAllocator>
 at::Tensor BroadcastForwardGPU(
@@ -439,7 +439,7 @@ at::Tensor PruningBackwardCPU(at::Tensor &grad_out_feat,       // CPU out feat
                               CoordinateMapKey *p_out_map_key, //
                               cpu_manager_type<coordinate_type> *p_map_manager);
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 template <typename coordinate_type,
           template <typename C> class TemplatedAllocator>
 at::Tensor PruningForwardGPU(
@@ -477,7 +477,7 @@ InterpolationBackwardCPU(at::Tensor &grad_out_feat,      //
                          CoordinateMapKey *p_in_map_key, //
                          cpu_manager_type<coordinate_type> *p_map_manager);
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 template <typename coordinate_type,
           template <typename C> class TemplatedAllocator>
 std::vector<at::Tensor> InterpolationForwardGPU(
@@ -523,7 +523,7 @@ torch::Tensor max_pool_bw(torch::Tensor const &grad_out_feat, //
                           torch::Tensor const &mask_index,    //
                           int const in_nrows);
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 template <typename th_int_type>
 torch::Tensor coo_spmm(torch::Tensor const &rows, torch::Tensor const &cols,
                        torch::Tensor const &vals, int64_t const dim_i,
@@ -604,7 +604,7 @@ void instantiate_cpu_func(py::module &m, const std::string &dtypestr) {
         py::call_guard<py::gil_scoped_release>());
 }
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 template <typename coordinate_type,
           template <typename C> class TemplatedAllocator>
 void instantiate_gpu_func(py::module &m, const std::string &dtypestr) {
@@ -696,7 +696,7 @@ void non_templated_cpu_func(py::module &m) {
         py::call_guard<py::gil_scoped_release>());
 }
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 void non_templated_gpu_func(py::module &m) {
   m.def("coo_spmm_int32", &minkowski::coo_spmm<int32_t>,
         py::call_guard<py::gil_scoped_release>());
@@ -845,7 +845,7 @@ void instantiate_manager(py::module &m, const std::string &dtypestr) {
 }
 
 bool is_cuda_available() {
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
   return true;
 #else
   return false;
@@ -869,7 +869,7 @@ int cudart_version() {
 }
 
 std::pair<size_t, size_t> get_gpu_memory_info() {
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
   return minkowski::get_memory_info();
 #else
   return std::make_pair(0, 0);

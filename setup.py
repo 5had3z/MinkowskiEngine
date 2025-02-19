@@ -48,11 +48,10 @@ def run_command(*args):
     subprocess.check_call(args)
 
 
-run_command("rm", "-rf", "build")
 run_command("pip", "uninstall", "MinkowskiEngine", "-y")
 
 
-CPU_ONLY = False 
+CPU_ONLY = False
 FORCE_CUDA = True
 
 

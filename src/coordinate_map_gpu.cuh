@@ -136,9 +136,9 @@ public:
       LOG_DEBUG("Reserve map of",
                 compute_hash_table_size(size, m_hashtable_occupancy),
                 "for concurrent_unordered_map of size", size);
-      m_map = map_type::create(
+      m_map = std::move(map_type::create(
           compute_hash_table_size(size, m_hashtable_occupancy),
-          m_unused_element, m_unused_key, m_hasher, m_equal, m_map_allocator);
+          m_unused_element, m_unused_key, m_hasher, m_equal, m_map_allocator));
       LOG_DEBUG("Done concurrent_unordered_map creation");
       CUDA_TRY(cudaStreamSynchronize(0));
       m_capacity = size;
@@ -219,7 +219,7 @@ private:
   index_storage_type m_inverse_row_index;
   index_storage_type m_device_tensor_stride;
   map_allocator_type m_map_allocator;
-  std::shared_ptr<map_type> m_map;
+  std::unique_ptr<map_type, std::function<void(map_type*)>> m_map;
 };
 
 template <typename coordinate_field_type, typename coordinate_int_type,

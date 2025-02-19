@@ -37,7 +37,7 @@
 #include "coords_key.hpp"
 #include "coords_manager.hpp"
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 #include <cublas_v2.h>
 #include <cuda.h>
 #include <cuda_runtime.h>

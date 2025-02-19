@@ -54,10 +54,6 @@ field_map_kernel(uint32_t const num_tfield,      //
                  Dtype const *const p_tfield,    //
                  MapType const &in_map,          //
                  default_types::stride_type const &tensor_stride) {
-  constexpr bool is_float32 = std::is_same<Dtype, float>::value;
-  at::ScalarType const float_type =
-      is_float32 ? at::ScalarType::Float : at::ScalarType::Double;
-
   cpu_in_maps in_maps = initialize_maps<cpu_in_map>(1, num_tfield);
   cpu_out_maps out_maps = initialize_maps<cpu_out_map>(1, num_tfield);
 

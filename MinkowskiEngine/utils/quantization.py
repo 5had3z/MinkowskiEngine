@@ -23,7 +23,7 @@
 # of the code.
 import torch
 import numpy as np
-from collections import Sequence
+from typing import Sequence
 import MinkowskiEngineBackend._C as MEB
 from typing import Union, Tuple
 from MinkowskiCommon import convert_to_int_list

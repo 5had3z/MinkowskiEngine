@@ -45,7 +45,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   // Manager
   instantiate_manager<minkowski::cpu_manager_type<int32_t>>(m,
                                                             std::string("CPU"));
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
   instantiate_manager<minkowski::gpu_default_manager_type<int32_t>>(
       m, std::string("GPU_default"));
   instantiate_manager<minkowski::gpu_c10_manager_type<int32_t>>(
@@ -56,7 +56,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   non_templated_cpu_func(m);
   instantiate_cpu_func<int32_t>(m, "");
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
   instantiate_gpu_func<int32_t, minkowski::detail::default_allocator>(
       m, std::string(""));
 

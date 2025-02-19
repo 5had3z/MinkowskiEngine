@@ -16,8 +16,8 @@
 #ifndef GDF_CPPTYPES_H
 #define GDF_CPPTYPES_H
 
-#include <cudf/types.h>
-#include <cudf/types.hpp>
+#include "../../types.h"
+#include "../../types.hpp"
 
 #include <cuda_runtime.h>
 

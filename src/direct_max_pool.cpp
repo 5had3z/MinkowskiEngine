@@ -30,7 +30,7 @@
 #include <torch/extension.h>
 #include <torch/script.h>
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 #include <ATen/cuda/CUDAUtils.h>
 #endif
 
@@ -52,7 +52,7 @@ void MaxPoolingBackwardKernelCPU(Dtype *p_grad_in_feat, size_t const in_nrows,
                                  MaskItype const *p_mask_index,
                                  size_t const nchannel);
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 template <typename Dtype, typename MaskItype, typename MapItype>
 void max_pool_forward_pointer_kernel_gpu(
     MapItype *d_in_map,     // this will be sorted
@@ -86,7 +86,7 @@ max_pool_fw(torch::Tensor const &in_map,  //
                                       in_map.options().requires_grad(false));
 
   if (in_feat.device().is_cuda()) {
-#ifdef CPU_ONLY
+#ifndef __CUDACC__
     AT_ERROR("Please compile again with CUDA support");
 #else
     ASSERT(in_map.is_cuda(), "in_map must be a CUDA tensor.");
@@ -135,7 +135,7 @@ torch::Tensor max_pool_bw(torch::Tensor const &grad_out_feat, //
       at::zeros({in_nrows, grad_out_feat.size(1)}, grad_out_feat.options());
 
   if (grad_out_feat.device().is_cuda()) {
-#ifdef CPU_ONLY
+#ifndef __CUDACC__
     AT_ERROR("Please compile again with CUDA support");
 #else
     ASSERT(mask_index.is_cuda(), "kernel must be a CUDA tensor.");

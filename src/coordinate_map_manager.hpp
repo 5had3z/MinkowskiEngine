@@ -34,7 +34,7 @@
 #include "types.hpp"
 #include "utils.hpp"
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 #include "coordinate_map_gpu.cuh"
 #include "kernel_map.cuh"
 #endif
@@ -90,7 +90,7 @@ public:
   using index_type = default_types::index_type;
   using stride_type = default_types::stride_type;
   using map_type = CoordinateMapType<coordinate_type, TemplatedAllocator>;
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
   using field_map_type = typename std::conditional<
       detail::is_cpu_coordinate_map<CoordinateMapType>::value,
       CoordinateFieldMapCPU<coordinate_field_type, coordinate_type,
@@ -107,7 +107,7 @@ public:
   using map_collection_type = std::map<coordinate_map_key_type, map_type,
                                        coordinate_map_key_comparator>;
   using kernel_map_type =
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
       typename std::conditional<
           detail::is_cpu_coordinate_map<CoordinateMapType>::value,
           cpu_kernel_map,
@@ -116,7 +116,7 @@ public:
       cpu_kernel_map;
 #endif
   using kernel_map_reference_type =
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
       typename std::conditional<
           detail::is_cpu_coordinate_map<CoordinateMapType>::value,
           cpu_kernel_map,
@@ -519,7 +519,7 @@ private:
 
 public:
   size_t m_gpu_default_occupancy;
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
   void *allocate(size_type n) { return m_allocator.allocate(n); }
 
   void deallocate(void *p, size_type n) {
@@ -553,7 +553,7 @@ private:
       field_to_sparse_map_key_hasher<coordinate_map_key_hasher>>
       m_field_to_sparse_maps;
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
   TemplatedAllocator<char> m_allocator;
 #endif
   // kernel map mode
@@ -682,7 +682,7 @@ using cpu_manager_type =
     CoordinateMapManager<coordinate_type, default_types::ccoordinate_type,
                          std::allocator, CoordinateMapCPU>;
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 template <typename coordinate_type,
           template <typename C> class TemplatedAllocator>
 using gpu_manager_type =

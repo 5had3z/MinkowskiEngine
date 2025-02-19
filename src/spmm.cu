@@ -29,11 +29,16 @@
 
 #include <cusparse.h>
 
+#include <ATen/Tensor.h>
 #include <ATen/cuda/CUDAContext.h>
 #include <ATen/cuda/CUDAUtils.h>
 #include <c10/cuda/CUDACachingAllocator.h>
 #include <torch/extension.h>
 #include <torch/script.h>
+
+#include <thrust/reduce.h>
+#include <thrust/execution_policy.h>
+#include <thrust/sort.h>
 
 namespace minkowski {
 

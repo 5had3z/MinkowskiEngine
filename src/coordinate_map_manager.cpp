@@ -218,7 +218,7 @@ CoordinateMapManager<coordinate_type, coordinate_field_type, TemplatedAllocator,
   auto options = torch::TensorOptions().dtype(torch::kInt).requires_grad(false);
 
   if (!detail::is_cpu_coordinate_map<CoordinateMapType>::value) {
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
     auto device_id = at::cuda::current_device();
     options = options.device(torch::kCUDA, device_id);
 #else
@@ -319,7 +319,7 @@ CoordinateMapManager<coordinate_type, coordinate_field_type, TemplatedAllocator,
   auto options = torch::TensorOptions().dtype(torch::kInt).requires_grad(false);
 
   if (!detail::is_cpu_coordinate_map<CoordinateMapType>::value) {
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
     auto device_id = at::cuda::current_device();
     options = options.device(torch::kCUDA, device_id);
 #else
@@ -1338,7 +1338,7 @@ CoordinateMapManager<coordinate_type, coordinate_field_type, TemplatedAllocator,
   // CPU torch.IntTensor
   auto options = torch::TensorOptions().dtype(torch::kInt).requires_grad(false);
   if (!detail::is_cpu_coordinate_map<CoordinateMapType>::value) {
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
     auto device_id = at::cuda::current_device();
     options = options.device(torch::kCUDA, device_id);
 #else
@@ -1435,7 +1435,7 @@ at::Tensor CoordinateMapManager<coordinate_type, coordinate_field_type,
                      .requires_grad(false);
 
   if (!detail::is_cpu_coordinate_map<CoordinateMapType>::value) {
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
     auto device_id = at::cuda::current_device();
     options = options.device(torch::kCUDA, device_id);
 #else

@@ -23,7 +23,7 @@
  *
  * ---------------------------------------------------------------------------**/
 
-#include <cudf/types.hpp>
+#include "../../types.hpp"
 #include <type_traits>
 
 namespace cudf {
@@ -68,7 +68,7 @@ struct DeviceCount {
  * value for minimum operator on string values.
  *
  */
-__constant__ char max_string_sentinel[5]{"\xF7\xBF\xBF\xBF"};
+static __constant__ char max_string_sentinel[5]{"\xF7\xBF\xBF\xBF"};
 
 /* @brief binary `min` operator */
 struct DeviceMin {

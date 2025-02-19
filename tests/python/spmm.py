@@ -26,7 +26,7 @@ import torch
 import unittest
 
 from MinkowskiEngine import spmm, MinkowskiSPMMFunction, MinkowskiSPMMAverageFunction
-from utils.gradcheck import gradcheck
+from MinkowskiEngine.utils.gradcheck import gradcheck
 
 
 class TestSPMM(unittest.TestCase):

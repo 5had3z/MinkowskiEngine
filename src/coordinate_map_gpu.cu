@@ -37,6 +37,7 @@
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/remove.h>
+#include <thrust/unique.h>
 
 namespace minkowski {
 

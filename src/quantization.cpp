@@ -31,7 +31,7 @@
 
 #include "coordinate_map_cpu.hpp"
 
-// #ifndef CPU_ONLY
+// #ifdef __CUDACC__
 // #include <ATen/cuda/CUDAContext.h>
 // #endif
 #include "utils.hpp"
@@ -319,14 +319,14 @@ std::vector<at::Tensor> quantize_label_th(at::Tensor coords, at::Tensor labels,
   at::Tensor th_num_nonzero = torch::zeros(
       {out_nrows}, torch::TensorOptions().dtype(th_in_feat.dtype()));
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
   cusparseHandle_t handle = at::cuda::getCurrentCUDASparseHandle();
   cusparseSetStream(handle, at::cuda::getCurrentCUDAStream());
 #endif
 
   if (th_in_map.dtype() == torch::kInt64) {
     if (th_in_feat.is_cuda()) {
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
       auto vec_in_map = CopyToInOutMapGPU<int>(th_in_map);
       auto vec_out_map = CopyToInOutMapGPU<int>(th_out_map);
 
@@ -367,7 +367,7 @@ std::vector<at::Tensor> quantize_label_th(at::Tensor coords, at::Tensor labels,
             th_num_nonzero.template da>
   } else if (th_in_map.dtype() == torch::kInt32) {
     if (th_in_feat.is_cuda()) {
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
       auto vec_in_map = CopyToInOutMapGPU<int>(th_in_map);
       auto vec_out_map = CopyToInOutMapGPU<int>(th_out_map);
 

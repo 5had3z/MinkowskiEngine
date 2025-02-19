@@ -36,7 +36,7 @@
 #include "types.hpp"
 #include "utils.hpp"
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 #include "allocators.cuh"
 #include "gpu.cuh"
 #endif
@@ -322,7 +322,7 @@ public:
   using base_type::tensor_stride;
   using base_type::volume;
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
   inline size_type const *device_tensor_stride() const {
     return m_d_tensor_stride;
   }

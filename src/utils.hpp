@@ -31,7 +31,7 @@
 #include <string>
 #include <vector>
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 #include <thrust/host_vector.h>
 #endif
 
@@ -65,7 +65,7 @@ std::ostream &print_vector(std::ostream &out, const T &v) {
   return out;
 }
 
-#ifndef CPU_ONLY
+#ifdef __CUDACC__
 template <typename T>
 std::ostream &operator<<(std::ostream &out, const thrust::host_vector<T> &v) {
   return print_vector(out, v);
