@@ -48,8 +48,8 @@
 #include <ATen/cuda/CUDAContext.h>
 
 #include "gpu.cuh"
-#include "types.cuh"
 #include "gpu_memory_manager.hpp"
+#include "types.cuh"
 #endif
 
 #endif // COMMON

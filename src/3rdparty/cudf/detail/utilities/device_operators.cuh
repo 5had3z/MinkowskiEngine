@@ -26,122 +26,131 @@
 #include "../../types.hpp"
 #include <type_traits>
 
-namespace cudf {
-// ------------------------------------------------------------------------
-// Binary operators
-/* @brief binary `sum` operator */
-struct DeviceSum {
-  template <typename T>
-  CUDA_HOST_DEVICE_CALLABLE T operator()(const T& lhs, const T& rhs)
+namespace cudf
+{
+  // ------------------------------------------------------------------------
+  // Binary operators
+  /* @brief binary `sum` operator */
+  struct DeviceSum
   {
-    return lhs + rhs;
-  }
+    template <typename T>
+    CUDA_HOST_DEVICE_CALLABLE T operator()(const T &lhs, const T &rhs)
+    {
+      return lhs + rhs;
+    }
 
-  template <typename T>
-  static constexpr T identity()
+    template <typename T>
+    static constexpr T identity()
+    {
+      return T{0};
+    }
+  };
+
+  /* @brief `count` operator - used in rolling windows */
+  struct DeviceCount
   {
-    return T{0};
-  }
-};
+    template <typename T>
+    CUDA_HOST_DEVICE_CALLABLE T operator()(const T &, const T &rhs)
+    {
+      return rhs + T{1};
+    }
 
-/* @brief `count` operator - used in rolling windows */
-struct DeviceCount {
-  template <typename T>
-  CUDA_HOST_DEVICE_CALLABLE T operator()(const T&, const T& rhs)
+    template <typename T>
+    static constexpr T identity()
+    {
+      return T{0};
+    }
+  };
+
+  /**
+   * @brief string value for sentinel which is used in min, max reduction
+   * operators
+   * This sentinel string value is the highest possible valid UTF-8 encoded
+   * character. This serves as identity value for maximum operator on string
+   * values. Also, this char pointer serves as valid device pointer of identity
+   * value for minimum operator on string values.
+   *
+   */
+  static __constant__ char max_string_sentinel[5]{"\xF7\xBF\xBF\xBF"};
+
+  /* @brief binary `min` operator */
+  struct DeviceMin
   {
-    return rhs + T{1};
-  }
+    template <typename T>
+    CUDA_HOST_DEVICE_CALLABLE T operator()(const T &lhs, const T &rhs)
+    {
+      return std::min(lhs, rhs);
+    }
 
-  template <typename T>
-  static constexpr T identity()
+    template <typename T>
+    static constexpr T identity()
+    {
+      return std::numeric_limits<T>::max();
+    }
+  };
+
+  /* @brief binary `max` operator */
+  struct DeviceMax
   {
-    return T{0};
-  }
-};
+    template <typename T>
+    CUDA_HOST_DEVICE_CALLABLE T operator()(const T &lhs, const T &rhs)
+    {
+      return std::max(lhs, rhs);
+    }
 
-/**
- * @brief string value for sentinel which is used in min, max reduction
- * operators
- * This sentinel string value is the highest possible valid UTF-8 encoded
- * character. This serves as identity value for maximum operator on string
- * values. Also, this char pointer serves as valid device pointer of identity
- * value for minimum operator on string values.
- *
- */
-static __constant__ char max_string_sentinel[5]{"\xF7\xBF\xBF\xBF"};
+    template <typename T>
+    static constexpr T identity()
+    {
+      return std::numeric_limits<T>::lowest();
+    }
+  };
 
-/* @brief binary `min` operator */
-struct DeviceMin {
-  template <typename T>
-  CUDA_HOST_DEVICE_CALLABLE T operator()(const T& lhs, const T& rhs)
+  /* @brief binary `product` operator */
+  struct DeviceProduct
   {
-    return std::min(lhs, rhs);
-  }
+    template <typename T>
+    CUDA_HOST_DEVICE_CALLABLE T operator()(const T &lhs, const T &rhs)
+    {
+      return lhs * rhs;
+    }
 
-  template <typename T>
-  static constexpr T identity()
+    template <typename T>
+    static constexpr T identity()
+    {
+      return T{1};
+    }
+  };
+
+  /* @brief binary `and` operator */
+  struct DeviceAnd
   {
-    return std::numeric_limits<T>::max();
-  }
-};
+    template <typename T, typename std::enable_if_t<std::is_integral<T>::value> * = nullptr>
+    CUDA_HOST_DEVICE_CALLABLE T operator()(const T &lhs, const T &rhs)
+    {
+      return (lhs & rhs);
+    }
+  };
 
-/* @brief binary `max` operator */
-struct DeviceMax {
-  template <typename T>
-  CUDA_HOST_DEVICE_CALLABLE T operator()(const T& lhs, const T& rhs)
+  /* @brief binary `or` operator */
+  struct DeviceOr
   {
-    return std::max(lhs, rhs);
-  }
+    template <typename T, typename std::enable_if_t<std::is_integral<T>::value> * = nullptr>
+    CUDA_HOST_DEVICE_CALLABLE T operator()(const T &lhs, const T &rhs)
+    {
+      return (lhs | rhs);
+    }
+  };
 
-  template <typename T>
-  static constexpr T identity()
+  /* @brief binary `xor` operator */
+  struct DeviceXor
   {
-    return std::numeric_limits<T>::lowest();
-  }
-};
+    template <typename T, typename std::enable_if_t<std::is_integral<T>::value> * = nullptr>
+    CUDA_HOST_DEVICE_CALLABLE T operator()(const T &lhs, const T &rhs)
+    {
+      return (lhs ^ rhs);
+    }
+  };
 
-/* @brief binary `product` operator */
-struct DeviceProduct {
-  template <typename T>
-  CUDA_HOST_DEVICE_CALLABLE T operator()(const T& lhs, const T& rhs)
-  {
-    return lhs * rhs;
-  }
-
-  template <typename T>
-  static constexpr T identity()
-  {
-    return T{1};
-  }
-};
-
-/* @brief binary `and` operator */
-struct DeviceAnd {
-  template <typename T, typename std::enable_if_t<std::is_integral<T>::value>* = nullptr>
-  CUDA_HOST_DEVICE_CALLABLE T operator()(const T& lhs, const T& rhs)
-  {
-    return (lhs & rhs);
-  }
-};
-
-/* @brief binary `or` operator */
-struct DeviceOr {
-  template <typename T, typename std::enable_if_t<std::is_integral<T>::value>* = nullptr>
-  CUDA_HOST_DEVICE_CALLABLE T operator()(const T& lhs, const T& rhs)
-  {
-    return (lhs | rhs);
-  }
-};
-
-/* @brief binary `xor` operator */
-struct DeviceXor {
-  template <typename T, typename std::enable_if_t<std::is_integral<T>::value>* = nullptr>
-  CUDA_HOST_DEVICE_CALLABLE T operator()(const T& lhs, const T& rhs)
-  {
-    return (lhs ^ rhs);
-  }
-};
-
-}  // namespace cudf
+} // namespace cudf
 
 #endif

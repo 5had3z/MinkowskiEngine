@@ -29,25 +29,26 @@
 
 #include "mkl_alternate.hpp"
 
-namespace minkowski {
+namespace minkowski
+{
 
-template <typename Dtype>
-void cpu_gemm(const CBLAS_ORDER Layout, const CBLAS_TRANSPOSE TransA,
-              const CBLAS_TRANSPOSE TransB, const int M, const int N,
-              const int K, const Dtype alpha, const Dtype *A, const Dtype *B,
-              const Dtype beta, Dtype *C);
+    template <typename Dtype>
+    void cpu_gemm(const CBLAS_ORDER Layout, const CBLAS_TRANSPOSE TransA,
+                  const CBLAS_TRANSPOSE TransB, const int M, const int N,
+                  const int K, const Dtype alpha, const Dtype *A, const Dtype *B,
+                  const Dtype beta, Dtype *C);
 
-template <typename Dtype>
-void cpu_add(const int N, const Dtype *a, const Dtype *b, Dtype *y);
+    template <typename Dtype>
+    void cpu_add(const int N, const Dtype *a, const Dtype *b, Dtype *y);
 
-template <typename Dtype>
-void cpu_mul(const int N, const Dtype *a, const Dtype *b, Dtype *y);
+    template <typename Dtype>
+    void cpu_mul(const int N, const Dtype *a, const Dtype *b, Dtype *y);
 
-template <typename Dtype>
-void cpu_div(const int N, const Dtype *a, const Dtype *b, Dtype *y);
+    template <typename Dtype>
+    void cpu_div(const int N, const Dtype *a, const Dtype *b, Dtype *y);
 
-template <typename Dtype>
-void cpu_axpy(const int N, const Dtype alpha, const Dtype *X, Dtype *Y);
+    template <typename Dtype>
+    void cpu_axpy(const int N, const Dtype alpha, const Dtype *X, Dtype *Y);
 
 } // end namespace minkowski
 

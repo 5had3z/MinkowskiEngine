@@ -28,13 +28,14 @@
 
 #include <string>
 
-namespace minkowski {
+namespace minkowski
+{
 
-constexpr char const * const ERROR_MAP_NOT_FOUND = "CoordinateMap not found";
+    constexpr char const *const ERROR_MAP_NOT_FOUND = "CoordinateMap not found";
 
-constexpr char const * const ERROR_NOT_IMPLEMENTED = "Not implemented";
+    constexpr char const *const ERROR_NOT_IMPLEMENTED = "Not implemented";
 
-constexpr char const * const ERROR_CPU_ONLY = "Compiled with only CPU backend.";
+    constexpr char const *const ERROR_CPU_ONLY = "Compiled with only CPU backend.";
 
 } // end minkowski
 

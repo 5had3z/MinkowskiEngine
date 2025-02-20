@@ -40,69 +40,80 @@
 
 #include <robin_hood.h>
 
-namespace minkowski {
+namespace minkowski
+{
 
-namespace detail {
+  namespace detail
+  {
 
-/*
-template <typename Itype> struct byte_hash_vec {
-  std::size_t operator()(std::vector<Itype> const &vec) const noexcept {
-    return robin_hood::hash_bytes(vec.data(), sizeof(Itype) * vec.size());
-  }
-};
-*/
+    /*
+    template <typename Itype> struct byte_hash_vec {
+      std::size_t operator()(std::vector<Itype> const &vec) const noexcept {
+        return robin_hood::hash_bytes(vec.data(), sizeof(Itype) * vec.size());
+      }
+    };
+    */
 
-/*
- * @note assume that `src`, `dst`, and `stride` are initialized correctly.
- */
-template <typename Itype>
-inline void
-stride_coordinate(const coordinate<Itype> &src, std::vector<Itype> &dst,
-                  const default_types::stride_type &stride) noexcept {
-  dst[0] = src[0];
-  for (default_types::index_type i = 0; i < stride.size(); ++i) {
-    dst[i + 1] = std::floor((float)src[i + 1] / stride[i]) * stride[i];
-  }
-}
-
-template <typename Itype, typename stride_type>
-inline void stride_coordinate(const coordinate<Itype> &src,
-                              std::vector<Itype> &dst,
-                              const stride_type stride) noexcept {
-  dst[0] = src[0];
-  for (default_types::index_type i = 0; i < dst.size() - 1; ++i) {
-    dst[i + 1] = std::floor((float)src[i + 1] / stride[i]) * stride[i];
-  }
-}
-
-inline default_types::stride_type
-stride_tensor_stride(const default_types::stride_type &tensor_stride,
-                     const default_types::stride_type &stride,
-                     bool is_transpose = false) {
-  ASSERT(tensor_stride.size() == stride.size(), "stride size mismatch.");
-  default_types::stride_type strided_tensor_stride{tensor_stride};
-  if (is_transpose) {
-    for (default_types::size_type i = 0; i < tensor_stride.size(); ++i) {
-      ASSERT(strided_tensor_stride[i] % stride[i] == 0,
-             "Invalid up stride on tensor stride:", tensor_stride,
-             "kernel stride:", stride);
-      strided_tensor_stride[i] /= stride[i];
+    /*
+     * @note assume that `src`, `dst`, and `stride` are initialized correctly.
+     */
+    template <typename Itype>
+    inline void
+    stride_coordinate(const coordinate<Itype> &src, std::vector<Itype> &dst,
+                      const default_types::stride_type &stride) noexcept
+    {
+      dst[0] = src[0];
+      for (default_types::index_type i = 0; i < stride.size(); ++i)
+      {
+        dst[i + 1] = std::floor((float)src[i + 1] / stride[i]) * stride[i];
+      }
     }
-  } else {
-    for (default_types::size_type i = 0; i < tensor_stride.size(); ++i)
-      strided_tensor_stride[i] *= stride[i];
-  }
-  return strided_tensor_stride;
-}
 
-} // namespace detail
+    template <typename Itype, typename stride_type>
+    inline void stride_coordinate(const coordinate<Itype> &src,
+                                  std::vector<Itype> &dst,
+                                  const stride_type stride) noexcept
+    {
+      dst[0] = src[0];
+      for (default_types::index_type i = 0; i < dst.size() - 1; ++i)
+      {
+        dst[i + 1] = std::floor((float)src[i + 1] / stride[i]) * stride[i];
+      }
+    }
 
-/*
- * @brief A wrapper for a coordinate map.
- *
- * @note
- */
-// clang-format off
+    inline default_types::stride_type
+    stride_tensor_stride(const default_types::stride_type &tensor_stride,
+                         const default_types::stride_type &stride,
+                         bool is_transpose = false)
+    {
+      TORCH_CHECK(tensor_stride.size() == stride.size(), "stride size mismatch.");
+      default_types::stride_type strided_tensor_stride{tensor_stride};
+      if (is_transpose)
+      {
+        for (default_types::size_type i = 0; i < tensor_stride.size(); ++i)
+        {
+          TORCH_CHECK(strided_tensor_stride[i] % stride[i] == 0,
+                      "Invalid up stride on tensor stride:", tensor_stride,
+                      "kernel stride:", stride);
+          strided_tensor_stride[i] /= stride[i];
+        }
+      }
+      else
+      {
+        for (default_types::size_type i = 0; i < tensor_stride.size(); ++i)
+          strided_tensor_stride[i] *= stride[i];
+      }
+      return strided_tensor_stride;
+    }
+
+  } // namespace detail
+
+  /*
+   * @brief A wrapper for a coordinate map.
+   *
+   * @note
+   */
+  // clang-format off
 template <typename coordinate_type, template <typename T> class TemplatedAllocator>
 class CoordinateMap {
 
@@ -140,7 +151,7 @@ public:
   template <typename key_iterator, typename mapped_iterator>
   void insert(key_iterator key_first, key_iterator key_last,
               mapped_iterator value_first, mapped_iterator value_last) {
-    ASSERT(false, "Not implemented"); // no virtual members for a templated class
+    TORCH_CHECK(false, "Not implemented"); // no virtual members for a templated class
   }
 
   /*
@@ -150,37 +161,42 @@ public:
    * stride.
    */
   self_type stride(stride_type const &tensor_strides) const {
-    ASSERT(false, "Not implemented"); // no virtual members for a templated class
+    TORCH_CHECK(false, "Not implemented"); // no virtual members for a templated class
   }
 
-  // clang-format on
+    // clang-format on
 
-  coordinate_type *coordinate_data() { return m_coordinates.get(); }
-  coordinate_type const *const_coordinate_data() const {
-    return m_coordinates.get();
-  }
-
-  void reserve(size_type size) {
-    if (m_capacity < size) {
-      LOG_DEBUG("Reserve coordinates:", size, "current capacity:", m_capacity);
-      allocate(size);
+    coordinate_type *coordinate_data() { return m_coordinates.get(); }
+    coordinate_type const *const_coordinate_data() const
+    {
+      return m_coordinates.get();
     }
-  }
 
-  std::string to_string() const;
+    void reserve(size_type size)
+    {
+      if (m_capacity < size)
+      {
+        LOG_DEBUG("Reserve coordinates:", size, "current capacity:", m_capacity);
+        allocate(size);
+      }
+    }
 
-  stride_type const &get_tensor_stride() const noexcept {
-    return m_tensor_stride;
-  }
+    std::string to_string() const;
 
-  inline size_type capacity() const noexcept { return m_capacity; }
+    stride_type const &get_tensor_stride() const noexcept
+    {
+      return m_tensor_stride;
+    }
 
-  inline size_type coordinate_size() const noexcept {
-    return m_coordinate_size;
-  }
+    inline size_type capacity() const noexcept { return m_capacity; }
 
-protected:
-  // clang-format off
+    inline size_type coordinate_size() const noexcept
+    {
+      return m_coordinate_size;
+    }
+
+  protected:
+    // clang-format off
   void allocate(size_type const number_of_coordinates) {
     if (m_capacity < number_of_coordinates) {
       LOG_DEBUG("Allocate", number_of_coordinates, "coordinates.");
@@ -190,45 +206,50 @@ protected:
     }
   }
 
-  // clang-format on
-  std::shared_ptr<coordinate_type[]> allocate_ptr(size_type const size) {
-    coordinate_type *ptr = reinterpret_cast<coordinate_type *>(
-        m_byte_allocator.allocate(size * sizeof(coordinate_type)));
+    // clang-format on
+    std::shared_ptr<coordinate_type[]> allocate_ptr(size_type const size)
+    {
+      coordinate_type *ptr = reinterpret_cast<coordinate_type *>(
+          m_byte_allocator.allocate(size * sizeof(coordinate_type)));
 
-    auto deleter = [](coordinate_type *p, byte_allocator_type alloc,
-                      size_type size) {
-      alloc.deallocate(reinterpret_cast<char *>(p), size);
-    };
+      auto deleter = [](coordinate_type *p, byte_allocator_type alloc,
+                        size_type size)
+      {
+        alloc.deallocate(reinterpret_cast<char *>(p), size);
+      };
 
-    return std::shared_ptr<coordinate_type[]>{
-        ptr, std::bind(deleter, std::placeholders::_1, m_byte_allocator,
-                       size * sizeof(coordinate_type))};
-  }
-
-private:
-  /*
-   * @brief expand the m_tensor_stride to m_coordinate_size - 1 if it has 1.
-   */
-  void expand_tensor_stride() {
-    if (m_tensor_stride.size() == 1) {
-      for (size_type i = 0; i < m_coordinate_size - 2; ++i) {
-        m_tensor_stride.push_back(m_tensor_stride[0]);
-      }
+      return std::shared_ptr<coordinate_type[]>{
+          ptr, std::bind(deleter, std::placeholders::_1, m_byte_allocator,
+                         size * sizeof(coordinate_type))};
     }
-    ASSERT(m_tensor_stride.size() == m_coordinate_size - 1,
-           "Invalid tensor stride", m_tensor_stride);
-  }
 
-protected:
-  // members
-  size_type m_number_of_coordinates;
-  size_type m_coordinate_size;
-  size_type m_capacity;
-  stride_type m_tensor_stride;
+  private:
+    /*
+     * @brief expand the m_tensor_stride to m_coordinate_size - 1 if it has 1.
+     */
+    void expand_tensor_stride()
+    {
+      if (m_tensor_stride.size() == 1)
+      {
+        for (size_type i = 0; i < m_coordinate_size - 2; ++i)
+        {
+          m_tensor_stride.push_back(m_tensor_stride[0]);
+        }
+      }
+      TORCH_CHECK(m_tensor_stride.size() == m_coordinate_size - 1,
+                  "Invalid tensor stride", m_tensor_stride);
+    }
 
-  byte_allocator_type m_byte_allocator;
-  std::shared_ptr<coordinate_type[]> m_coordinates;
-};
+  protected:
+    // members
+    size_type m_number_of_coordinates;
+    size_type m_coordinate_size;
+    size_type m_capacity;
+    stride_type m_tensor_stride;
+
+    byte_allocator_type m_byte_allocator;
+    std::shared_ptr<coordinate_type[]> m_coordinates;
+  };
 
 } // end namespace minkowski
 

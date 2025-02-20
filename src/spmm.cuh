@@ -35,18 +35,19 @@
 #include <torch/extension.h>
 #include <torch/script.h>
 
-namespace minkowski {
+namespace minkowski
+{
 
-template <typename th_int_type>
-torch::Tensor coo_spmm(torch::Tensor const &rows, torch::Tensor const &cols,
-                       torch::Tensor const &vals, int64_t const dim_i,
-                       int64_t const dim_j, torch::Tensor const &mat2,
-                       int64_t const spmm_algorithm_id, bool const is_sorted);
+    template <typename th_int_type>
+    torch::Tensor coo_spmm(torch::Tensor const &rows, torch::Tensor const &cols,
+                           torch::Tensor const &vals, int64_t const dim_i,
+                           int64_t const dim_j, torch::Tensor const &mat2,
+                           int64_t const spmm_algorithm_id, bool const is_sorted);
 
-template <typename th_int_type>
-std::vector<torch::Tensor> // output, sorted rows, sorted cols, sorted vals.
-coo_spmm_average(torch::Tensor const &rows, torch::Tensor const &cols,
-                 int64_t const dim_i, int64_t const dim_j,
-                 torch::Tensor const &mat2, int64_t const spmm_algorithm_id);
+    template <typename th_int_type>
+    std::vector<torch::Tensor> // output, sorted rows, sorted cols, sorted vals.
+    coo_spmm_average(torch::Tensor const &rows, torch::Tensor const &cols,
+                     int64_t const dim_i, int64_t const dim_j,
+                     torch::Tensor const &mat2, int64_t const spmm_algorithm_id);
 } // namespace minkowski
 #endif

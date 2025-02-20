@@ -35,31 +35,32 @@
 #include "math_functions.cuh"
 #include "types.hpp"
 
-namespace minkowski {
+namespace minkowski
+{
 
-template <typename Dtype, typename Itype, typename ByteAllocator>
-void NonzeroAvgPoolingForwardKernelGPU(
-    Dtype const *d_in_feat,                                 //
-    default_types::size_type const in_nrows,                //
-    Dtype *d_out_feat,                                      //
-    default_types::size_type const out_nrows,               //
-    Dtype *d_num_nonzero,                                   //
-    default_types::size_type const nchannel,                //
-    gpu_kernel_map<Itype, ByteAllocator> const &kernel_map, //
-    bool const use_avg,
-    ByteAllocator &allocator, //
-    cusparseHandle_t cushandle, cudaStream_t stream);
+    template <typename Dtype, typename Itype, typename ByteAllocator>
+    void NonzeroAvgPoolingForwardKernelGPU(
+        Dtype const *d_in_feat,                                 //
+        default_types::size_type const in_nrows,                //
+        Dtype *d_out_feat,                                      //
+        default_types::size_type const out_nrows,               //
+        Dtype *d_num_nonzero,                                   //
+        default_types::size_type const nchannel,                //
+        gpu_kernel_map<Itype, ByteAllocator> const &kernel_map, //
+        bool const use_avg,
+        ByteAllocator &allocator, //
+        cusparseHandle_t cushandle, cudaStream_t stream);
 
-template <typename Dtype, typename Itype, typename ByteAllocator>
-void NonzeroAvgPoolingBackwardKernelGPU(
-    Dtype *d_grad_in_feat,                    //
-    default_types::size_type const in_nrows,  //
-    Dtype const *d_grad_out_feat,             //
-    default_types::size_type const out_nrows, //
-    Dtype const *d_num_nonzero,               //
-    default_types::size_type const nchannel,  //
-    gpu_kernel_map<Itype, ByteAllocator> const &kernel_map, bool const use_avg,
-    cudaStream_t stream);
+    template <typename Dtype, typename Itype, typename ByteAllocator>
+    void NonzeroAvgPoolingBackwardKernelGPU(
+        Dtype *d_grad_in_feat,                    //
+        default_types::size_type const in_nrows,  //
+        Dtype const *d_grad_out_feat,             //
+        default_types::size_type const out_nrows, //
+        Dtype const *d_num_nonzero,               //
+        default_types::size_type const nchannel,  //
+        gpu_kernel_map<Itype, ByteAllocator> const &kernel_map, bool const use_avg,
+        cudaStream_t stream);
 
 } // end namespace minkowski
 

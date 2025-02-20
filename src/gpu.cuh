@@ -41,10 +41,12 @@
 // AtomicAddition for double with cuda arch <= 600
 #if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600
 #else
-__device__ double atomicAdd(double *address, double val) {
+__device__ double atomicAdd(double *address, double val)
+{
   unsigned long long int *address_as_ull = (unsigned long long int *)address;
   unsigned long long int old = *address_as_ull, assumed;
-  do {
+  do
+  {
     assumed = old;
     old = atomicCAS(address_as_ull, assumed,
                     __double_as_longlong(val + __longlong_as_double(assumed)));
@@ -53,134 +55,147 @@ __device__ double atomicAdd(double *address, double val) {
 }
 #endif
 
-namespace minkowski {
+namespace minkowski
+{
 
 //
 // CUDA macros
 //
 
 // CUDA: various checks for different function calls.
-#define CUDA_CHECK(condition)                                                  \
-  /* Code block avoids redefinition of cudaError_t error */                    \
-  {                                                                            \
-    cudaError_t error = condition;                                             \
-    if (error != cudaSuccess) {                                                \
-      throw std::runtime_error(Formatter()                                     \
-                               << " " << cudaGetErrorString(error) << " at "   \
-                               << __FILE__ << ":" << __LINE__);                \
-    }                                                                          \
+#define CUDA_CHECK(condition)                                                \
+  /* Code block avoids redefinition of cudaError_t error */                  \
+  {                                                                          \
+    cudaError_t error = condition;                                           \
+    if (error != cudaSuccess)                                                \
+    {                                                                        \
+      throw std::runtime_error(Formatter()                                   \
+                               << " " << cudaGetErrorString(error) << " at " \
+                               << __FILE__ << ":" << __LINE__);              \
+    }                                                                        \
   }
 
 // CUDA: various checks for different function calls.
 #ifdef DEBUG
-#define CUDA_CHECK_DEBUG(condition)                                            \
-  /* Code block avoids redefinition of cudaError_t error */                    \
-  {                                                                            \
-    cudaError_t error = condition;                                             \
-    if (error != cudaSuccess) {                                                \
-      throw std::runtime_error(Formatter()                                     \
-                               << " " << cudaGetErrorString(error) << " at "   \
-                               << __FILE__ << ":" << __LINE__);                \
-    }                                                                          \
+#define CUDA_CHECK_DEBUG(condition)                                          \
+  /* Code block avoids redefinition of cudaError_t error */                  \
+  {                                                                          \
+    cudaError_t error = condition;                                           \
+    if (error != cudaSuccess)                                                \
+    {                                                                        \
+      throw std::runtime_error(Formatter()                                   \
+                               << " " << cudaGetErrorString(error) << " at " \
+                               << __FILE__ << ":" << __LINE__);              \
+    }                                                                        \
   }
 #else
 #define CUDA_CHECK_DEBUG(...) (void)0
 #endif
 
-#define CUDA_CHECK_ARGS(condition, ...)                                        \
-  /* Code block avoids redefinition of cudaError_t error */                    \
-  {                                                                            \
-    cudaError_t error = condition;                                             \
-    if (error != cudaSuccess) {                                                \
-      Formatter formatter;                                                     \
-      formatter << " " << cudaGetErrorString(error) << " at ";                 \
-      formatter << __FILE__ << ":" << __LINE__;                                \
-      formatter.append(__VA_ARGS__);                                           \
-      throw std::runtime_error(formatter.str());                               \
-    }                                                                          \
+#define CUDA_CHECK_ARGS(condition, ...)                        \
+  /* Code block avoids redefinition of cudaError_t error */    \
+  {                                                            \
+    cudaError_t error = condition;                             \
+    if (error != cudaSuccess)                                  \
+    {                                                          \
+      Formatter formatter;                                     \
+      formatter << " " << cudaGetErrorString(error) << " at "; \
+      formatter << __FILE__ << ":" << __LINE__;                \
+      formatter.append(__VA_ARGS__);                           \
+      throw std::runtime_error(formatter.str());               \
+    }                                                          \
   }
 
-#define CUBLAS_CHECK(condition)                                                \
-  {                                                                            \
-    cublasStatus_t status = condition;                                         \
-    if (status != CUBLAS_STATUS_SUCCESS) {                                     \
-      throw std::runtime_error(Formatter()                                     \
-                               << minkowski::cublasGetErrorString(status)      \
-                               << " at " << __FILE__ << ":" << __LINE__);      \
-    }                                                                          \
+#define CUBLAS_CHECK(condition)                                           \
+  {                                                                       \
+    cublasStatus_t status = condition;                                    \
+    if (status != CUBLAS_STATUS_SUCCESS)                                  \
+    {                                                                     \
+      throw std::runtime_error(Formatter()                                \
+                               << minkowski::cublasGetErrorString(status) \
+                               << " at " << __FILE__ << ":" << __LINE__); \
+    }                                                                     \
   }
 
-#define CUSPARSE_CHECK(call)                                                   \
-  {                                                                            \
-    cusparseStatus_t err;                                                      \
-    if ((err = (call)) != CUSPARSE_STATUS_SUCCESS) {                           \
-      throw std::runtime_error(Formatter()                                     \
-                               << minkowski::cusparseGetErrorString(err)       \
-                               << " at " << __FILE__ << ":" << __LINE__);      \
-    }                                                                          \
+#define CUSPARSE_CHECK(call)                                              \
+  {                                                                       \
+    cusparseStatus_t err;                                                 \
+    if ((err = (call)) != CUSPARSE_STATUS_SUCCESS)                        \
+    {                                                                     \
+      throw std::runtime_error(Formatter()                                \
+                               << minkowski::cusparseGetErrorString(err)  \
+                               << " at " << __FILE__ << ":" << __LINE__); \
+    }                                                                     \
   }
 
-#define CURAND_CHECK(condition)                                                \
-  {                                                                            \
-    curandStatus_t status = condition;                                         \
-    if (status != CURAND_STATUS_SUCCESS) {                                     \
-      throw std::runtime_error(Formatter()                                     \
-                               << curandGetErrorString(status) << " at "       \
-                               << __FILE__ << ":" << __LINE__);                \
-    }                                                                          \
+#define CURAND_CHECK(condition)                                          \
+  {                                                                      \
+    curandStatus_t status = condition;                                   \
+    if (status != CURAND_STATUS_SUCCESS)                                 \
+    {                                                                    \
+      throw std::runtime_error(Formatter()                               \
+                               << curandGetErrorString(status) << " at " \
+                               << __FILE__ << ":" << __LINE__);          \
+    }                                                                    \
   }
 
 // CUDA: grid stride looping
-#define CUDA_KERNEL_LOOP(i, n)                                                 \
-  for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < (n);                 \
+#define CUDA_KERNEL_LOOP(i, n)                                 \
+  for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < (n); \
        i += blockDim.x * gridDim.x)
 
 // CUDA: check for error after kernel execution and exit loudly if there is one.
-#define CUDA_POST_KERNEL_CHECK                                                 \
-  {                                                                            \
-    cudaError_t status = cudaPeekAtLastError();                                \
-    if (status != cudaSuccess) {                                               \
-      throw std::runtime_error(Formatter()                                     \
-                               << " " << cudaGetErrorString(status) << " at "  \
-                               << __FILE__ << ":" << __LINE__);                \
-    }                                                                          \
+#define CUDA_POST_KERNEL_CHECK                                                \
+  {                                                                           \
+    cudaError_t status = cudaPeekAtLastError();                               \
+    if (status != cudaSuccess)                                                \
+    {                                                                         \
+      throw std::runtime_error(Formatter()                                    \
+                               << " " << cudaGetErrorString(status) << " at " \
+                               << __FILE__ << ":" << __LINE__);               \
+    }                                                                         \
   }
 
-#define THRUST_CHECK(condition)                                                \
-  try {                                                                        \
-    condition;                                                                 \
-  } catch (thrust::system_error e) {                                           \
-    throw std::runtime_error(Formatter()                                       \
-                             << "Thrust error: " << e.what() << " at "         \
-                             << __FILE__ << ":" << __LINE__);                  \
+#define THRUST_CHECK(condition)                                        \
+  try                                                                  \
+  {                                                                    \
+    condition;                                                         \
+  }                                                                    \
+  catch (thrust::system_error e)                                       \
+  {                                                                    \
+    throw std::runtime_error(Formatter()                               \
+                             << "Thrust error: " << e.what() << " at " \
+                             << __FILE__ << ":" << __LINE__);          \
   }
 
-#define THRUST_CATCH                                                           \
-  catch (thrust::system_error e) {                                             \
-    throw std::runtime_error(Formatter()                                       \
-                             << "Thrust error: " << e.what() << " at "         \
-                             << __FILE__ << ":" << __LINE__);                  \
+#define THRUST_CATCH                                                   \
+  catch (thrust::system_error e)                                       \
+  {                                                                    \
+    throw std::runtime_error(Formatter()                               \
+                             << "Thrust error: " << e.what() << " at " \
+                             << __FILE__ << ":" << __LINE__);          \
   }
 
-// CUDA: library error reporting.
-const char *cublasGetErrorString(cublasStatus_t error);
+  // CUDA: library error reporting.
+  const char *cublasGetErrorString(cublasStatus_t error);
 
-// CUSparse error reporting.
-const char *cusparseGetErrorString(cusparseStatus_t error);
+  // CUSparse error reporting.
+  const char *cusparseGetErrorString(cusparseStatus_t error);
 
-cusparseHandle_t getCurrentCUDASparseHandle();
+  cusparseHandle_t getCurrentCUDASparseHandle();
 
-constexpr uint32_t CUDA_NUM_THREADS = 128;
+  constexpr uint32_t CUDA_NUM_THREADS = 128;
 
-constexpr uint32_t SHARED_BLOCK_SIZE = 32;
+  constexpr uint32_t SHARED_BLOCK_SIZE = 32;
 
-constexpr uint32_t MAX_GRID = 65535;
+  constexpr uint32_t MAX_GRID = 65535;
 
-inline int GET_BLOCKS(const uint32_t N, const uint32_t THREADS) {
-  return std::max((N + THREADS - 1) / THREADS, uint32_t(1));
-}
+  inline int GET_BLOCKS(const uint32_t N, const uint32_t THREADS)
+  {
+    return std::max((N + THREADS - 1) / THREADS, uint32_t(1));
+  }
 
-std::pair<size_t, size_t> get_memory_info();
+  std::pair<size_t, size_t> get_memory_info();
 
 } // end namespace minkowski
 

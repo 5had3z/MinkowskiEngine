@@ -34,34 +34,35 @@
 #include "math_functions.cuh"
 #include "types.hpp"
 
-namespace minkowski {
+namespace minkowski
+{
 
-template <typename Dtype, typename MaskItype, typename MapItype>
-void max_pool_forward_pointer_kernel_gpu(
-    MapItype *d_in_map,     // this will be sorted
-    MapItype *d_out_map,    // this will be sorted
-    size_t const nmap,      // map size
-    Dtype const *d_in_feat, //
-    Dtype *d_out_feat,      //
-    size_t const out_nrows, //
-    size_t const nchannel,  //
-    MaskItype *d_max_index, //
-    bool const is_sorted    //
-);
+    template <typename Dtype, typename MaskItype, typename MapItype>
+    void max_pool_forward_pointer_kernel_gpu(
+        MapItype *d_in_map,     // this will be sorted
+        MapItype *d_out_map,    // this will be sorted
+        size_t const nmap,      // map size
+        Dtype const *d_in_feat, //
+        Dtype *d_out_feat,      //
+        size_t const out_nrows, //
+        size_t const nchannel,  //
+        MaskItype *d_max_index, //
+        bool const is_sorted    //
+    );
 
-template <typename Dtype, typename MapItype, typename ByteAllocator>
-void MaxPoolingForwardKernelGPU(
-    const Dtype *d_in_feat, Dtype *d_out_feat, size_t const out_nrows,
-    int *d_max_index, size_t const nchannel,
-    gpu_kernel_map<MapItype, ByteAllocator> const &kernel_map,
-    ByteAllocator &allocator, cudaStream_t stream);
+    template <typename Dtype, typename MapItype, typename ByteAllocator>
+    void MaxPoolingForwardKernelGPU(
+        const Dtype *d_in_feat, Dtype *d_out_feat, size_t const out_nrows,
+        int *d_max_index, size_t const nchannel,
+        gpu_kernel_map<MapItype, ByteAllocator> const &kernel_map,
+        ByteAllocator &allocator, cudaStream_t stream);
 
-template <typename Dtype, typename MaskItype>
-void MaxPoolingBackwardKernelGPU(Dtype *d_grad_in_feat, size_t const in_nrows,
-                                 const Dtype *d_grad_out_feat,
-                                 size_t const out_nrows,
-                                 const MaskItype *d_max_index,
-                                 size_t const nchannel);
+    template <typename Dtype, typename MaskItype>
+    void MaxPoolingBackwardKernelGPU(Dtype *d_grad_in_feat, size_t const in_nrows,
+                                     const Dtype *d_grad_out_feat,
+                                     size_t const out_nrows,
+                                     const MaskItype *d_max_index,
+                                     size_t const nchannel);
 
 } // end namespace minkowski
 

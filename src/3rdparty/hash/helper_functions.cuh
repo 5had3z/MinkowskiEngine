@@ -17,10 +17,10 @@
 #ifndef HELPER_FUNCTIONS_CUH
 #define HELPER_FUNCTIONS_CUH
 
-#include <iterator>
-#include <cstdint>
-#include <thrust/pair.h>
 #include <cassert>
+#include <cstdint>
+#include <iterator>
+#include <thrust/pair.h>
 
 constexpr int64_t DEFAULT_HASH_TABLE_OCCUPANCY = 50;
 
@@ -40,8 +40,10 @@ constexpr int64_t DEFAULT_HASH_TABLE_OCCUPANCY = 50;
 inline size_t compute_hash_table_size(uint32_t num_keys_to_insert,
                                       uint32_t desired_occupancy = DEFAULT_HASH_TABLE_OCCUPANCY)
 {
-  assert(desired_occupancy != 0);
-  assert(desired_occupancy <= 100);
+  if (desired_occupancy == 0 | desired_occupancy > 100)
+  {
+    throw std::invalid_argument("Desired occupancy must be in the range (0, 100]");
+  }
   double const grow_factor{100.0 / desired_occupancy};
 
   // Calculate size of hash map based on the desired occupancy
@@ -51,138 +53,158 @@ inline size_t compute_hash_table_size(uint32_t num_keys_to_insert,
 }
 
 template <typename pair_type>
-__forceinline__ __device__ pair_type load_pair_vectorized(const pair_type* __restrict__ const ptr)
+__forceinline__ __device__ pair_type load_pair_vectorized(const pair_type *__restrict__ const ptr)
 {
-  if (sizeof(uint4) == sizeof(pair_type)) {
-    union pair_type2vec_type {
+  if (sizeof(uint4) == sizeof(pair_type))
+  {
+    union pair_type2vec_type
+    {
       uint4 vec_val;
       pair_type pair_val;
     };
     pair_type2vec_type converter = {0, 0, 0, 0};
-    converter.vec_val            = *reinterpret_cast<const uint4*>(ptr);
+    converter.vec_val = *reinterpret_cast<const uint4 *>(ptr);
     return converter.pair_val;
-  } else if (sizeof(uint2) == sizeof(pair_type)) {
-    union pair_type2vec_type {
+  }
+  else if (sizeof(uint2) == sizeof(pair_type))
+  {
+    union pair_type2vec_type
+    {
       uint2 vec_val;
       pair_type pair_val;
     };
     pair_type2vec_type converter = {0, 0};
-    converter.vec_val            = *reinterpret_cast<const uint2*>(ptr);
+    converter.vec_val = *reinterpret_cast<const uint2 *>(ptr);
     return converter.pair_val;
-  } else if (sizeof(int) == sizeof(pair_type)) {
-    union pair_type2vec_type {
+  }
+  else if (sizeof(int) == sizeof(pair_type))
+  {
+    union pair_type2vec_type
+    {
       int vec_val;
       pair_type pair_val;
     };
     pair_type2vec_type converter = {0};
-    converter.vec_val            = *reinterpret_cast<const int*>(ptr);
+    converter.vec_val = *reinterpret_cast<const int *>(ptr);
     return converter.pair_val;
-  } else if (sizeof(short) == sizeof(pair_type)) {
-    union pair_type2vec_type {
+  }
+  else if (sizeof(short) == sizeof(pair_type))
+  {
+    union pair_type2vec_type
+    {
       short vec_val;
       pair_type pair_val;
     };
     pair_type2vec_type converter = {0};
-    converter.vec_val            = *reinterpret_cast<const short*>(ptr);
+    converter.vec_val = *reinterpret_cast<const short *>(ptr);
     return converter.pair_val;
-  } else {
+  }
+  else
+  {
     return *ptr;
   }
 }
 
 template <typename pair_type>
-__forceinline__ __device__ void store_pair_vectorized(pair_type* __restrict__ const ptr,
+__forceinline__ __device__ void store_pair_vectorized(pair_type *__restrict__ const ptr,
                                                       const pair_type val)
 {
-  if (sizeof(uint4) == sizeof(pair_type)) {
-    union pair_type2vec_type {
+  if (sizeof(uint4) == sizeof(pair_type))
+  {
+    union pair_type2vec_type
+    {
       uint4 vec_val;
       pair_type pair_val;
     };
-    pair_type2vec_type converter   = {0, 0, 0, 0};
-    converter.pair_val             = val;
-    *reinterpret_cast<uint4*>(ptr) = converter.vec_val;
-  } else if (sizeof(uint2) == sizeof(pair_type)) {
-    union pair_type2vec_type {
+    pair_type2vec_type converter = {0, 0, 0, 0};
+    converter.pair_val = val;
+    *reinterpret_cast<uint4 *>(ptr) = converter.vec_val;
+  }
+  else if (sizeof(uint2) == sizeof(pair_type))
+  {
+    union pair_type2vec_type
+    {
       uint2 vec_val;
       pair_type pair_val;
     };
-    pair_type2vec_type converter   = {0, 0};
-    converter.pair_val             = val;
-    *reinterpret_cast<uint2*>(ptr) = converter.vec_val;
-  } else if (sizeof(int) == sizeof(pair_type)) {
-    union pair_type2vec_type {
+    pair_type2vec_type converter = {0, 0};
+    converter.pair_val = val;
+    *reinterpret_cast<uint2 *>(ptr) = converter.vec_val;
+  }
+  else if (sizeof(int) == sizeof(pair_type))
+  {
+    union pair_type2vec_type
+    {
       int vec_val;
       pair_type pair_val;
     };
     pair_type2vec_type converter = {0};
-    converter.pair_val           = val;
-    *reinterpret_cast<int*>(ptr) = converter.vec_val;
-  } else if (sizeof(short) == sizeof(pair_type)) {
-    union pair_type2vec_type {
+    converter.pair_val = val;
+    *reinterpret_cast<int *>(ptr) = converter.vec_val;
+  }
+  else if (sizeof(short) == sizeof(pair_type))
+  {
+    union pair_type2vec_type
+    {
       short vec_val;
       pair_type pair_val;
     };
-    pair_type2vec_type converter   = {0};
-    converter.pair_val             = val;
-    *reinterpret_cast<short*>(ptr) = converter.vec_val;
-  } else {
+    pair_type2vec_type converter = {0};
+    converter.pair_val = val;
+    *reinterpret_cast<short *>(ptr) = converter.vec_val;
+  }
+  else
+  {
     *ptr = val;
   }
 }
 
 template <typename value_type, typename size_type, typename key_type, typename elem_type>
-__global__ void init_hashtbl(value_type* __restrict__ const hashtbl_values,
+__global__ void init_hashtbl(value_type *__restrict__ const hashtbl_values,
                              const size_type n,
                              const key_type key_val,
                              const elem_type elem_val)
 {
   const size_type idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < n) {
+  if (idx < n)
+  {
     store_pair_vectorized(hashtbl_values + idx, thrust::make_pair(key_val, elem_val));
   }
 }
 
 template <typename T>
-struct equal_to {
-  using result_type          = bool;
-  using first_argument_type  = T;
+struct equal_to
+{
+  using result_type = bool;
+  using first_argument_type = T;
   using second_argument_type = T;
   __forceinline__ __host__ __device__ constexpr bool operator()(
-    const first_argument_type& lhs, const second_argument_type& rhs) const
+      const first_argument_type &lhs, const second_argument_type &rhs) const
   {
     return lhs == rhs;
   }
 };
 
 template <typename Iterator>
-class cycle_iterator_adapter {
- public:
-  using value_type      = typename std::iterator_traits<Iterator>::value_type;
+class cycle_iterator_adapter
+{
+public:
+  using value_type = typename std::iterator_traits<Iterator>::value_type;
   using difference_type = typename std::iterator_traits<Iterator>::difference_type;
-  using pointer         = typename std::iterator_traits<Iterator>::pointer;
-  using reference       = typename std::iterator_traits<Iterator>::reference;
-  using iterator_type   = Iterator;
+  using pointer = typename std::iterator_traits<Iterator>::pointer;
+  using reference = typename std::iterator_traits<Iterator>::reference;
+  using iterator_type = Iterator;
 
   cycle_iterator_adapter() = delete;
 
-  __host__ __device__ explicit cycle_iterator_adapter(const iterator_type& begin,
-                                                      const iterator_type& end,
-                                                      const iterator_type& current)
-    : m_begin(begin), m_end(end), m_current(current)
+  __host__ __device__ explicit cycle_iterator_adapter(const iterator_type &begin,
+                                                      const iterator_type &end,
+                                                      const iterator_type &current)
+      : m_begin(begin), m_end(end), m_current(current)
   {
   }
 
-  __host__ __device__ cycle_iterator_adapter& operator++()
-  {
-    if (m_end == (m_current + 1))
-      m_current = m_begin;
-    else
-      ++m_current;
-    return *this;
-  }
-
-  __host__ __device__ const cycle_iterator_adapter& operator++() const
+  __host__ __device__ cycle_iterator_adapter &operator++()
   {
     if (m_end == (m_current + 1))
       m_current = m_begin;
@@ -191,7 +213,16 @@ class cycle_iterator_adapter {
     return *this;
   }
 
-  __host__ __device__ cycle_iterator_adapter& operator++(int)
+  __host__ __device__ const cycle_iterator_adapter &operator++() const
+  {
+    if (m_end == (m_current + 1))
+      m_current = m_begin;
+    else
+      ++m_current;
+    return *this;
+  }
+
+  __host__ __device__ cycle_iterator_adapter &operator++(int)
   {
     cycle_iterator_adapter<iterator_type> old(m_begin, m_end, m_current);
     if (m_end == (m_current + 1))
@@ -201,7 +232,7 @@ class cycle_iterator_adapter {
     return old;
   }
 
-  __host__ __device__ const cycle_iterator_adapter& operator++(int) const
+  __host__ __device__ const cycle_iterator_adapter &operator++(int) const
   {
     cycle_iterator_adapter<iterator_type> old(m_begin, m_end, m_current);
     if (m_end == (m_current + 1))
@@ -211,14 +242,14 @@ class cycle_iterator_adapter {
     return old;
   }
 
-  __host__ __device__ bool equal(const cycle_iterator_adapter<iterator_type>& other) const
+  __host__ __device__ bool equal(const cycle_iterator_adapter<iterator_type> &other) const
   {
     return m_current == other.m_current && m_begin == other.m_begin && m_end == other.m_end;
   }
 
-  __host__ __device__ reference& operator*() { return *m_current; }
+  __host__ __device__ reference &operator*() { return *m_current; }
 
-  __host__ __device__ const reference& operator*() const { return *m_current; }
+  __host__ __device__ const reference &operator*() const { return *m_current; }
 
   __host__ __device__ const pointer operator->() const { return m_current.operator->(); }
 
@@ -226,24 +257,24 @@ class cycle_iterator_adapter {
 
   __host__ __device__ difference_type offset() const { return m_current - m_begin; }
 
- private:
+private:
   iterator_type m_current;
   iterator_type m_begin;
   iterator_type m_end;
 };
 
 template <class T>
-__host__ __device__ bool operator==(const cycle_iterator_adapter<T>& lhs,
-                                    const cycle_iterator_adapter<T>& rhs)
+__host__ __device__ bool operator==(const cycle_iterator_adapter<T> &lhs,
+                                    const cycle_iterator_adapter<T> &rhs)
 {
   return lhs.equal(rhs);
 }
 
 template <class T>
-__host__ __device__ bool operator!=(const cycle_iterator_adapter<T>& lhs,
-                                    const cycle_iterator_adapter<T>& rhs)
+__host__ __device__ bool operator!=(const cycle_iterator_adapter<T> &lhs,
+                                    const cycle_iterator_adapter<T> &rhs)
 {
   return !lhs.equal(rhs);
 }
 
-#endif  // HELPER_FUNCTIONS_CUH
+#endif // HELPER_FUNCTIONS_CUH

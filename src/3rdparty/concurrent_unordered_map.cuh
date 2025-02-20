@@ -17,7 +17,6 @@
 #ifndef CONCURRENT_UNORDERED_MAP_CUH
 #define CONCURRENT_UNORDERED_MAP_CUH
 
-
 #include "./cudf/detail/utilities/device_atomics.cuh"
 #include "./cudf/detail/utilities/hash_functions.cuh"
 #include "./cudf/utilities/error.hpp"
@@ -536,7 +535,7 @@ public:
         for (size_type i = 0; i < m_capacity; ++i)
         {
             ::std::cout << i << ": " << m_hashtbl_values[i].first << "," << m_hashtbl_values[i].second
-                      << ::std::endl;
+                        << ::std::endl;
         }
     }
 

@@ -30,9 +30,10 @@ using hash_value_type = uint32_t;
 // compile and run any of them on any platform, but your performance with the
 // non-native version will be less than optimal.
 template <typename Key>
-struct MurmurHash3_32 {
+struct MurmurHash3_32
+{
   using argument_type = Key;
-  using result_type   = hash_value_type;
+  using result_type = hash_value_type;
 
   CUDA_HOST_DEVICE_CALLABLE MurmurHash3_32() : m_seed(0) {}
 
@@ -73,37 +74,43 @@ struct MurmurHash3_32 {
     return combined;
   }
 
-  result_type CUDA_HOST_DEVICE_CALLABLE operator()(Key const& key) const { return compute(key); }
+  result_type CUDA_HOST_DEVICE_CALLABLE operator()(Key const &key) const { return compute(key); }
 
   // compute wrapper for floating point types
-  template <typename T, typename std::enable_if_t<std::is_floating_point<T>::value>* = nullptr>
-  hash_value_type CUDA_HOST_DEVICE_CALLABLE compute_floating_point(T const& key) const
+  template <typename T, typename std::enable_if_t<std::is_floating_point<T>::value> * = nullptr>
+  hash_value_type CUDA_HOST_DEVICE_CALLABLE compute_floating_point(T const &key) const
   {
-    if (key == T{0.0}) {
+    if (key == T{0.0})
+    {
       return 0;
-    } else if (isnan(key)) {
+    }
+    else if (isnan(key))
+    {
       T nan = std::numeric_limits<T>::quiet_NaN();
       return compute(nan);
-    } else {
+    }
+    else
+    {
       return compute(key);
     }
   }
 
   template <typename TKey>
-  result_type CUDA_HOST_DEVICE_CALLABLE compute(TKey const& key) const
+  result_type CUDA_HOST_DEVICE_CALLABLE compute(TKey const &key) const
   {
-    constexpr int len         = sizeof(argument_type);
-    const uint8_t* const data = (const uint8_t*)&key;
-    constexpr int nblocks     = len / 4;
+    constexpr int len = sizeof(argument_type);
+    const uint8_t *const data = (const uint8_t *)&key;
+    constexpr int nblocks = len / 4;
 
-    uint32_t h1           = m_seed;
+    uint32_t h1 = m_seed;
     constexpr uint32_t c1 = 0xcc9e2d51;
     constexpr uint32_t c2 = 0x1b873593;
     //----------
     // body
-    const uint32_t* const blocks = (const uint32_t*)(data + nblocks * 4);
-    for (int i = -nblocks; i; i++) {
-      uint32_t k1 = blocks[i];  // getblock32(blocks,i);
+    const uint32_t *const blocks = (const uint32_t *)(data + nblocks * 4);
+    for (int i = -nblocks; i; i++)
+    {
+      uint32_t k1 = blocks[i]; // getblock32(blocks,i);
       k1 *= c1;
       k1 = rotl32(k1, 15);
       k1 *= c2;
@@ -113,17 +120,20 @@ struct MurmurHash3_32 {
     }
     //----------
     // tail
-    const uint8_t* tail = (const uint8_t*)(data + nblocks * 4);
-    uint32_t k1         = 0;
-    switch (len & 3) {
-      case 3: k1 ^= tail[2] << 16;
-      case 2: k1 ^= tail[1] << 8;
-      case 1:
-        k1 ^= tail[0];
-        k1 *= c1;
-        k1 = rotl32(k1, 15);
-        k1 *= c2;
-        h1 ^= k1;
+    const uint8_t *tail = (const uint8_t *)(data + nblocks * 4);
+    uint32_t k1 = 0;
+    switch (len & 3)
+    {
+    case 3:
+      k1 ^= tail[2] << 16;
+    case 2:
+      k1 ^= tail[1] << 8;
+    case 1:
+      k1 ^= tail[0];
+      k1 *= c1;
+      k1 = rotl32(k1, 15);
+      k1 *= c2;
+      h1 ^= k1;
     };
     //----------
     // finalization
@@ -132,32 +142,32 @@ struct MurmurHash3_32 {
     return h1;
   }
 
- private:
+private:
   uint32_t m_seed;
 };
 
 template <>
 hash_value_type CUDA_HOST_DEVICE_CALLABLE
-MurmurHash3_32<cudf::bool8>::operator()(cudf::bool8 const& key) const
+MurmurHash3_32<cudf::bool8>::operator()(cudf::bool8 const &key) const
 {
   return this->compute(static_cast<int8_t>(key));
 }
 
 template <>
-hash_value_type CUDA_HOST_DEVICE_CALLABLE MurmurHash3_32<bool>::operator()(bool const& key) const
+hash_value_type CUDA_HOST_DEVICE_CALLABLE MurmurHash3_32<bool>::operator()(bool const &key) const
 {
   return this->compute(static_cast<uint8_t>(key));
 }
 
 template <>
-hash_value_type CUDA_HOST_DEVICE_CALLABLE MurmurHash3_32<float>::operator()(float const& key) const
+hash_value_type CUDA_HOST_DEVICE_CALLABLE MurmurHash3_32<float>::operator()(float const &key) const
 {
   return this->compute_floating_point(key);
 }
 
 template <>
 hash_value_type CUDA_HOST_DEVICE_CALLABLE
-MurmurHash3_32<double>::operator()(double const& key) const
+MurmurHash3_32<double>::operator()(double const &key) const
 {
   return this->compute_floating_point(key);
 }
@@ -169,7 +179,8 @@ MurmurHash3_32<double>::operator()(double const& key) const
  */
 /* ----------------------------------------------------------------------------*/
 template <typename Key>
-struct IdentityHash {
+struct IdentityHash
+{
   using result_type = hash_value_type;
 
   /* --------------------------------------------------------------------------*/
@@ -194,7 +205,7 @@ struct IdentityHash {
     return combined;
   }
 
-  CUDA_HOST_DEVICE_CALLABLE result_type operator()(const Key& key) const
+  CUDA_HOST_DEVICE_CALLABLE result_type operator()(const Key &key) const
   {
     return static_cast<result_type>(key);
   }
@@ -204,7 +215,8 @@ struct IdentityHash {
  * @brief Specialization of IdentityHash for wrapper structs that hashes the underlying value.
  */
 template <typename T, gdf_dtype type_id>
-struct IdentityHash<cudf::detail::wrapper<T, type_id>> {
+struct IdentityHash<cudf::detail::wrapper<T, type_id>>
+{
   using result_type = hash_value_type;
 
   CUDA_HOST_DEVICE_CALLABLE result_type hash_combine(result_type lhs, result_type rhs) const
@@ -218,14 +230,14 @@ struct IdentityHash<cudf::detail::wrapper<T, type_id>> {
 
   template <gdf_dtype dtype = type_id>
   typename std::enable_if_t<(dtype == GDF_BOOL8), result_type> CUDA_HOST_DEVICE_CALLABLE
-  operator()(cudf::detail::wrapper<T, dtype> const& key) const
+  operator()(cudf::detail::wrapper<T, dtype> const &key) const
   {
     return static_cast<result_type>(key);
   }
 
   template <gdf_dtype dtype = type_id>
   typename std::enable_if_t<(dtype != GDF_BOOL8), result_type> CUDA_HOST_DEVICE_CALLABLE
-  operator()(cudf::detail::wrapper<T, dtype> const& key) const
+  operator()(cudf::detail::wrapper<T, dtype> const &key) const
   {
     return static_cast<result_type>(key.value);
   }

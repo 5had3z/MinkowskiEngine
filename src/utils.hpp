@@ -35,129 +35,144 @@
 #include <thrust/host_vector.h>
 #endif
 
-namespace minkowski {
+#include <torch/csrc/Exceptions.h>
 
-struct timer {
+namespace minkowski
+{
 
-  void tic() { m_start = std::chrono::high_resolution_clock::now(); }
+  struct timer
+  {
 
-  double toc() {
-    return std::chrono::duration<double>(
-               std::chrono::high_resolution_clock::now() - m_start)
-        .count();
-  }
+    void tic() { m_start = std::chrono::high_resolution_clock::now(); }
 
-  std::chrono::high_resolution_clock::time_point m_start;
-};
-
-template <typename T>
-std::ostream &print_vector(std::ostream &out, const T &v) {
-  if (!v.empty()) {
-    auto actual_delim = ", ";
-    auto delim = "";
-    out << '[';
-    for (const auto &elem : v) {
-      out << delim << elem;
-      delim = actual_delim;
+    double toc()
+    {
+      return std::chrono::duration<double>(
+                 std::chrono::high_resolution_clock::now() - m_start)
+          .count();
     }
-    out << "]";
+
+    std::chrono::high_resolution_clock::time_point m_start;
+  };
+
+  template <typename T>
+  std::ostream &print_vector(std::ostream &out, const T &v)
+  {
+    if (!v.empty())
+    {
+      auto actual_delim = ", ";
+      auto delim = "";
+      out << '[';
+      for (const auto &elem : v)
+      {
+        out << delim << elem;
+        delim = actual_delim;
+      }
+      out << "]";
+    }
+    return out;
   }
-  return out;
-}
 
 #ifdef __CUDACC__
-template <typename T>
-std::ostream &operator<<(std::ostream &out, const thrust::host_vector<T> &v) {
-  return print_vector(out, v);
-}
+  template <typename T>
+  std::ostream &operator<<(std::ostream &out, const thrust::host_vector<T> &v)
+  {
+    return print_vector(out, v);
+  }
 #endif
 
-template <typename T>
-std::ostream &operator<<(std::ostream &out, const std::vector<T> &v) {
-  return print_vector(out, v);
-}
-
-template <typename T> std::string ArrToString(const T &arr) {
-  std::string buf = "[";
-  for (const auto &a : arr) {
-    buf += std::to_string(a) + ", ";
-  }
-  buf += arr.empty() ? "]" : "\b\b]";
-  return buf;
-}
-
-template <typename T> std::string PtrToString(const T *ptr, int size) {
-  std::string buf = "[";
-  for (int i = 0; i < size; i++) {
-    buf += (i ? ", " : "") + std::to_string(ptr[i]);
-  }
-  buf += "]";
-  return buf;
-}
-
-class Formatter {
-public:
-  Formatter() {}
-  ~Formatter() {}
-
-  template <typename Type> Formatter &operator<<(const Type &value) {
-    stream_ << value;
-    return *this;
+  template <typename T>
+  std::ostream &operator<<(std::ostream &out, const std::vector<T> &v)
+  {
+    return print_vector(out, v);
   }
 
-  template <typename Type> void append(Type value) { stream_ << value; }
-
-  // Recursively append arguments
-  template <typename Type, typename... Args>
-  void append(Type value, Args... args) {
-    stream_ << value << " ";
-    append(args...);
+  template <typename T>
+  std::string ArrToString(const T &arr)
+  {
+    std::string buf = "[";
+    for (const auto &a : arr)
+    {
+      buf += std::to_string(a) + ", ";
+    }
+    buf += arr.empty() ? "]" : "\b\b]";
+    return buf;
   }
 
-  std::string str() const { return stream_.str(); }
-  operator std::string() const { return stream_.str(); }
-
-  enum ConvertToString { to_str };
-
-  std::string operator>>(ConvertToString) { return stream_.str(); }
-
-private:
-  std::stringstream stream_;
-  Formatter(const Formatter &);
-  Formatter &operator=(Formatter &);
-};
-
-#define OVERFLOW_IF(condition, ...)                                            \
-  {                                                                            \
-    if (condition) {                                                           \
-      Formatter formatter;                                                     \
-      formatter << __FILE__ << ":" << __LINE__ << ",";                         \
-      formatter << " overflow condition (" #condition << "). ";                \
-      formatter.append(__VA_ARGS__);                                           \
-      throw std::overflow_error(formatter.str());                              \
-    }                                                                          \
+  template <typename T>
+  std::string PtrToString(const T *ptr, int size)
+  {
+    std::string buf = "[";
+    for (int i = 0; i < size; i++)
+    {
+      buf += (i ? ", " : "") + std::to_string(ptr[i]);
+    }
+    buf += "]";
+    return buf;
   }
 
-#define ASSERT(condition, ...)                                                 \
-  {                                                                            \
-    if (!(condition)) {                                                        \
-      Formatter formatter;                                                     \
-      formatter << __FILE__ << ":" << __LINE__ << ",";                         \
-      formatter << " assertion (" #condition << ") failed. ";                  \
-      formatter.append(__VA_ARGS__);                                           \
-      throw std::runtime_error(formatter.str());                               \
-    }                                                                          \
+  class Formatter
+  {
+  public:
+    Formatter() {}
+    ~Formatter() {}
+
+    template <typename Type>
+    Formatter &operator<<(const Type &value)
+    {
+      stream_ << value;
+      return *this;
+    }
+
+    template <typename Type>
+    void append(Type value) { stream_ << value; }
+
+    // Recursively append arguments
+    template <typename Type, typename... Args>
+    void append(Type value, Args... args)
+    {
+      stream_ << value << " ";
+      append(args...);
+    }
+
+    std::string str() const { return stream_.str(); }
+    operator std::string() const { return stream_.str(); }
+
+    enum ConvertToString
+    {
+      to_str
+    };
+
+    std::string operator>>(ConvertToString) { return stream_.str(); }
+
+  private:
+    std::stringstream stream_;
+    Formatter(const Formatter &);
+    Formatter &operator=(Formatter &);
+  };
+
+#define OVERFLOW_IF(condition, ...)                             \
+  {                                                             \
+    if (condition)                                              \
+    {                                                           \
+      Formatter formatter;                                      \
+      formatter << __FILE__ << ":" << __LINE__ << ",";          \
+      formatter << " overflow condition (" #condition << "). "; \
+      formatter.append(__VA_ARGS__);                            \
+      throw std::overflow_error(formatter.str());               \
+    }                                                           \
   }
 
-#define WARNING(condition, ...)                                                \
-  {                                                                            \
-    if (condition) {                                                           \
-      Formatter formatter;                                                     \
-      formatter << __FILE__ << ":" << __LINE__ << ",";                         \
-      formatter << " (" #condition << ") ";                                    \
-      formatter.append(__VA_ARGS__);                                           \
-      std::cerr << formatter.str() << std::endl;                               \
-    }                                                                          \
+#define WARNING(condition, ...)                        \
+  {                                                    \
+    if (condition)                                     \
+    {                                                  \
+      Formatter formatter;                             \
+      formatter << __FILE__ << ":" << __LINE__ << ","; \
+      formatter << " (" #condition << ") ";            \
+      formatter.append(__VA_ARGS__);                   \
+      std::cerr << formatter.str() << std::endl;       \
+    }                                                  \
   }
 
 #ifdef __CUDACC__
@@ -173,12 +188,12 @@ private:
 #define RESET "\033[0m"
 
 #ifdef DEBUG
-#define __DEBUG(...)                                                           \
-  {                                                                            \
-    Formatter formatter;                                                       \
-    formatter << COLOR << __FILE__ << ":" << __LINE__ << RESET << " ";         \
-    formatter.append(__VA_ARGS__);                                             \
-    std::cerr << formatter.str() << "\n";                                      \
+#define __DEBUG(...)                                                   \
+  {                                                                    \
+    Formatter formatter;                                               \
+    formatter << COLOR << __FILE__ << ":" << __LINE__ << RESET << " "; \
+    formatter.append(__VA_ARGS__);                                     \
+    std::cerr << formatter.str() << "\n";                              \
   }
 // #define __DEBUG(msg, ...) fprintf(stderr, COLOR msg "%c" RESET, __VA_ARGS__);
 // #define LOG_DEBUG(...) __DEBUG(__VA_ARGS__, '\n')
@@ -187,74 +202,83 @@ private:
 #define LOG_DEBUG(...) (void)0
 #endif
 
-#define __WARN(...)                                                            \
-  {                                                                            \
-    Formatter formatter;                                                       \
-    formatter << COLOR << "WARNING:" << __FILE__ << ":" << __LINE__ << RESET   \
-              << " ";                                                          \
-    formatter.append(__VA_ARGS__);                                             \
-    std::cerr << formatter.str() << "\n";                                      \
+#define __WARN(...)                                                          \
+  {                                                                          \
+    Formatter formatter;                                                     \
+    formatter << COLOR << "WARNING:" << __FILE__ << ":" << __LINE__ << RESET \
+              << " ";                                                        \
+    formatter.append(__VA_ARGS__);                                           \
+    std::cerr << formatter.str() << "\n";                                    \
   }
 
 #define LOG_WARN(...) __WARN(__VA_ARGS__)
 
-class simple_range {
-  using index_type = uint32_t;
-
-public:
-  // member typedefs provided through inheriting from std::iterator
-  class iterator
-      : public std::iterator<std::input_iterator_tag, // iterator_category
-                             index_type,              // value_type
-                             index_type,              // difference_type
-                             const index_type *,      // pointer
-                             index_type               // reference
-                             > {
-    // custom iterator members
-    index_type m_num;
+  class simple_range
+  {
+    using index_type = uint32_t;
 
   public:
-    explicit iterator(index_type _num = 0) : m_num(_num) {}
-    iterator &operator++() {
-      m_num++;
-      return *this;
+    // member typedefs provided through inheriting from std::iterator
+    class iterator
+        : public std::iterator<std::input_iterator_tag, // iterator_category
+                               index_type,              // value_type
+                               index_type,              // difference_type
+                               const index_type *,      // pointer
+                               index_type               // reference
+                               >
+    {
+      // custom iterator members
+      index_type m_num;
+
+    public:
+      explicit iterator(index_type _num = 0) : m_num(_num) {}
+      iterator &operator++()
+      {
+        m_num++;
+        return *this;
+      }
+      iterator operator++(int)
+      {
+        iterator retval = *this;
+        ++(*this);
+        return retval;
+      }
+      int32_t operator-(iterator const &other) const
+      {
+        return m_num - other.m_num;
+      }
+      bool operator==(iterator const &other) const
+      {
+        return m_num == other.m_num;
+      }
+      bool operator!=(iterator const &other) const { return !(*this == other); }
+      bool operator!=(iterator &&other) const { return !(*this == other); }
+      reference operator*() const { return m_num; }
+    };
+
+    simple_range(index_type from, index_type to) : m_from(from), m_to(to)
+    {
+      TORCH_CHECK(m_to > m_from, "Invalid range");
     }
-    iterator operator++(int) {
-      iterator retval = *this;
-      ++(*this);
-      return retval;
+    simple_range(index_type to) : m_from(0), m_to(to)
+    {
+      TORCH_CHECK(m_to > m_from, "Invalid range");
     }
-    int32_t operator-(iterator const &other) const {
-      return m_num - other.m_num;
+    simple_range(simple_range const &) = delete;
+    simple_range(simple_range &&other) : m_from(other.m_from), m_to(other.m_to) {}
+
+    std::string to_string()
+    {
+      Formatter formatter;
+      formatter << "Range: " << m_from << " -- " << m_to << "\n";
+      return formatter.str();
     }
-    bool operator==(iterator const &other) const {
-      return m_num == other.m_num;
-    }
-    bool operator!=(iterator const &other) const { return !(*this == other); }
-    bool operator!=(iterator &&other) const { return !(*this == other); }
-    reference operator*() const { return m_num; }
+
+    iterator begin() { return iterator(m_from); }
+    iterator end() { return iterator(m_to); }
+
+    index_type const m_from, m_to;
   };
-
-  simple_range(index_type from, index_type to) : m_from(from), m_to(to) {
-    ASSERT(m_to > m_from, "Invalid range");
-  }
-  simple_range(index_type to) : m_from(0), m_to(to) {
-    ASSERT(m_to > m_from, "Invalid range");
-  }
-  simple_range(simple_range const &) = delete;
-  simple_range(simple_range &&other) : m_from(other.m_from), m_to(other.m_to) {}
-
-  std::string to_string() {
-    Formatter formatter;
-    formatter << "Range: " << m_from << " -- " << m_to << "\n";
-    return formatter.str();
-  }
-
-  iterator begin() { return iterator(m_from); }
-  iterator end() { return iterator(m_to); }
-
-  index_type const m_from, m_to;
-};
 
 } // end namespace minkowski
 

@@ -27,42 +27,47 @@
 
 #include "types.hpp"
 
-namespace minkowski {
+namespace minkowski
+{
 
-template <typename Dtype>
-void PruningForwardKernelCPU(const Dtype *p_in_feat, Dtype *p_out_feat,
-                             int const nchannel, const cpu_in_maps &in_maps,
-                             const cpu_out_maps &out_maps) {
-  const Dtype *p_curr_in;
-  Dtype *p_curr_out;
-  auto const &in_map = in_maps[0];
-  auto const &out_map = out_maps[0];
-  // Iterate through each spatial kernel out of filter_volume spatial kernels
-  for (uint32_t row = 0; row < in_map.size(); row++) {
-    // Define current pointers
-    p_curr_in = p_in_feat + in_map[row] * nchannel;
-    p_curr_out = p_out_feat + out_map[row] * nchannel;
-    std::memcpy(p_curr_out, p_curr_in, nchannel * sizeof(Dtype));
+  template <typename Dtype>
+  void PruningForwardKernelCPU(const Dtype *p_in_feat, Dtype *p_out_feat,
+                               int const nchannel, const cpu_in_maps &in_maps,
+                               const cpu_out_maps &out_maps)
+  {
+    const Dtype *p_curr_in;
+    Dtype *p_curr_out;
+    auto const &in_map = in_maps[0];
+    auto const &out_map = out_maps[0];
+    // Iterate through each spatial kernel out of filter_volume spatial kernels
+    for (uint32_t row = 0; row < in_map.size(); row++)
+    {
+      // Define current pointers
+      p_curr_in = p_in_feat + in_map[row] * nchannel;
+      p_curr_out = p_out_feat + out_map[row] * nchannel;
+      std::memcpy(p_curr_out, p_curr_in, nchannel * sizeof(Dtype));
+    }
   }
-}
 
-template <typename Dtype>
-void PruningBackwardKernelCPU(Dtype *p_grad_in_feat,
-                              const Dtype *p_grad_out_feat, int const nchannel,
-                              const cpu_in_maps &in_maps,
-                              const cpu_out_maps &out_maps) {
-  Dtype *p_curr_grad_in;
-  const Dtype *p_curr_grad_out;
-  auto const &in_map = in_maps[0];
-  auto const &out_map = out_maps[0];
+  template <typename Dtype>
+  void PruningBackwardKernelCPU(Dtype *p_grad_in_feat,
+                                const Dtype *p_grad_out_feat, int const nchannel,
+                                const cpu_in_maps &in_maps,
+                                const cpu_out_maps &out_maps)
+  {
+    Dtype *p_curr_grad_in;
+    const Dtype *p_curr_grad_out;
+    auto const &in_map = in_maps[0];
+    auto const &out_map = out_maps[0];
 
-  for (uint32_t row = 0; row < in_map.size(); row++) {
-    // Define current pointers
-    p_curr_grad_in = p_grad_in_feat + in_map[row] * nchannel;
-    p_curr_grad_out = p_grad_out_feat + out_map[row] * nchannel;
-    std::memcpy(p_curr_grad_in, p_curr_grad_out, nchannel * sizeof(Dtype));
+    for (uint32_t row = 0; row < in_map.size(); row++)
+    {
+      // Define current pointers
+      p_curr_grad_in = p_grad_in_feat + in_map[row] * nchannel;
+      p_curr_grad_out = p_grad_out_feat + out_map[row] * nchannel;
+      std::memcpy(p_curr_grad_in, p_curr_grad_out, nchannel * sizeof(Dtype));
+    }
   }
-}
 
 } // end namespace minkowski
 

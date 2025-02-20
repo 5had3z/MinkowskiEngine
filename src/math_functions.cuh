@@ -31,123 +31,133 @@
 
 #include "gpu.cuh"
 
-namespace minkowski {
+namespace minkowski
+{
 
-template <typename Dtype>
-void gpu_gemm(cublasHandle_t handle, const CBLAS_TRANSPOSE TransA,
-              const CBLAS_TRANSPOSE TransB, const int M, const int N,
-              const int K, const Dtype alpha, const Dtype *A, const Dtype *B,
-              const Dtype beta, Dtype *C);
+  template <typename Dtype>
+  void gpu_gemm(cublasHandle_t handle, const CBLAS_TRANSPOSE TransA,
+                const CBLAS_TRANSPOSE TransB, const int M, const int N,
+                const int K, const Dtype alpha, const Dtype *A, const Dtype *B,
+                const Dtype beta, Dtype *C);
 
-template <typename Dtype>
-void gpu_addition(const int N, const Dtype *a, const Dtype *b, Dtype *y,
-                  cudaStream_t stream);
+  template <typename Dtype>
+  void gpu_addition(const int N, const Dtype *a, const Dtype *b, Dtype *y,
+                    cudaStream_t stream);
 
-template <typename Dtype>
-void gpu_multiplication(const int N, const Dtype *a, const Dtype *b, Dtype *y,
-                        cudaStream_t stream);
+  template <typename Dtype>
+  void gpu_multiplication(const int N, const Dtype *a, const Dtype *b, Dtype *y,
+                          cudaStream_t stream);
 
-template <typename Dtype>
-void col2row_major(const int nrows, const int ncols, const Dtype *colA,
-                   Dtype *rowA, cudaStream_t stream);
+  template <typename Dtype>
+  void col2row_major(const int nrows, const int ncols, const Dtype *colA,
+                     Dtype *rowA, cudaStream_t stream);
 
-template <typename Dtype>
-void row2col_major(const int nrows, const int ncols, const Dtype *colA,
-                   Dtype *rowA, cudaStream_t stream);
+  template <typename Dtype>
+  void row2col_major(const int nrows, const int ncols, const Dtype *colA,
+                     Dtype *rowA, cudaStream_t stream);
 
-template <typename allocator_type>
-void sort_coo_gpu(cusparseHandle_t handle, const int m, const int n,
-                  const int nnz, int *d_coo_row, int *d_coo_col,
-                  allocator_type &allocator);
+  template <typename allocator_type>
+  void sort_coo_gpu(cusparseHandle_t handle, const int m, const int n,
+                    const int nnz, int *d_coo_row, int *d_coo_col,
+                    allocator_type &allocator);
 
-namespace detail {
+  namespace detail
+  {
 
-// copy_kernel_map for block thread > length
-template <typename Dtype, typename Itype>
-__global__ void __shared_copy_kernel_map(Dtype *__restrict__ dst,
-                                         const Dtype *__restrict__ const src,
-                                         const Itype *__restrict__ const map,
-                                         const Itype nthreads,
-                                         const Itype length) {
-  // cchoy: cache map and benchmark.
-  extern __shared__ unsigned int smap[];
-  const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-  const Itype src_index = i / length;
-  const Itype length_index = i % length;
-  const Itype block_rem = (blockIdx.x * blockDim.x) % length;
-  const Itype smap_index = (threadIdx.x + block_rem) / length;
-  if ((threadIdx.x == 0 || (threadIdx.x + block_rem) % length == 0) &&
-      i < nthreads)
-    smap[smap_index] = map[src_index];
-  __syncthreads();
-  if (i < nthreads) {
-    dst[i] = src[smap[smap_index] * length + length_index];
-  }
-}
+    // copy_kernel_map for block thread > length
+    template <typename Dtype, typename Itype>
+    __global__ void __shared_copy_kernel_map(Dtype *__restrict__ dst,
+                                             const Dtype *__restrict__ const src,
+                                             const Itype *__restrict__ const map,
+                                             const Itype nthreads,
+                                             const Itype length)
+    {
+      // cchoy: cache map and benchmark.
+      extern __shared__ unsigned int smap[];
+      const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+      const Itype src_index = i / length;
+      const Itype length_index = i % length;
+      const Itype block_rem = (blockIdx.x * blockDim.x) % length;
+      const Itype smap_index = (threadIdx.x + block_rem) / length;
+      if ((threadIdx.x == 0 || (threadIdx.x + block_rem) % length == 0) &&
+          i < nthreads)
+        smap[smap_index] = map[src_index];
+      __syncthreads();
+      if (i < nthreads)
+      {
+        dst[i] = src[smap[smap_index] * length + length_index];
+      }
+    }
 
-template <typename Dtype, typename Itype>
-__global__ void
-__shared_accumulate_kernel_map(Dtype *__restrict__ dst,
-                               const Dtype *__restrict__ const src,
-                               const Itype *__restrict__ const map,
-                               const Itype nthreads, const Itype length) {
-  // cchoy: cache map and benchmark.
-  extern __shared__ unsigned int smap[];
-  const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-  const Itype src_index = i / length;
-  const Itype length_index = i % length;
-  const Itype block_rem = (blockIdx.x * blockDim.x) % length;
-  const Itype smap_index = (threadIdx.x + block_rem) / length;
-  if ((threadIdx.x == 0 || (threadIdx.x + block_rem) % length == 0) &&
-      i < nthreads)
-    smap[smap_index] = map[src_index];
-  __syncthreads();
-  if (i < nthreads)
-    atomicAdd(&dst[smap[smap_index] * length + length_index], src[i]);
-}
+    template <typename Dtype, typename Itype>
+    __global__ void
+    __shared_accumulate_kernel_map(Dtype *__restrict__ dst,
+                                   const Dtype *__restrict__ const src,
+                                   const Itype *__restrict__ const map,
+                                   const Itype nthreads, const Itype length)
+    {
+      // cchoy: cache map and benchmark.
+      extern __shared__ unsigned int smap[];
+      const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+      const Itype src_index = i / length;
+      const Itype length_index = i % length;
+      const Itype block_rem = (blockIdx.x * blockDim.x) % length;
+      const Itype smap_index = (threadIdx.x + block_rem) / length;
+      if ((threadIdx.x == 0 || (threadIdx.x + block_rem) % length == 0) &&
+          i < nthreads)
+        smap[smap_index] = map[src_index];
+      __syncthreads();
+      if (i < nthreads)
+        atomicAdd(&dst[smap[smap_index] * length + length_index], src[i]);
+    }
 
-template <typename Dtype, typename Itype>
-void shared_copy_kernel_map(Dtype *dst, const Dtype *const src,
-                            const Itype *const map, const Itype nthreads,
-                            const Itype length) {
-  constexpr Itype MAX_THREADS = 512;
-  if (MAX_THREADS >= length) {
-    LOG_DEBUG("Blocks:", GET_BLOCKS(nthreads, MAX_THREADS),
-              "Threads:", MAX_THREADS,
-              "Shared:", GET_BLOCKS(MAX_THREADS, length));
-    __shared_copy_kernel_map<Dtype, Itype>
-        <<<GET_BLOCKS(nthreads, MAX_THREADS), MAX_THREADS,
-           GET_BLOCKS(MAX_THREADS, length) * sizeof(unsigned int)>>>(
-            dst, src, map, nthreads, length);
-  } else {
-    LOG_DEBUG("Blocks:", GET_BLOCKS(nthreads, MAX_THREADS),
-              "Threads:", MAX_THREADS,
-              "Shared:", GET_BLOCKS(length, MAX_THREADS));
-    __shared_copy_kernel_map<Dtype, Itype>
-        <<<GET_BLOCKS(nthreads, MAX_THREADS), MAX_THREADS,
-           GET_BLOCKS(length, MAX_THREADS) * sizeof(unsigned int)>>>(
-            dst, src, map, nthreads, length);
-  }
-}
+    template <typename Dtype, typename Itype>
+    void shared_copy_kernel_map(Dtype *dst, const Dtype *const src,
+                                const Itype *const map, const Itype nthreads,
+                                const Itype length)
+    {
+      constexpr Itype MAX_THREADS = 512;
+      if (MAX_THREADS >= length)
+      {
+        LOG_DEBUG("Blocks:", GET_BLOCKS(nthreads, MAX_THREADS),
+                  "Threads:", MAX_THREADS,
+                  "Shared:", GET_BLOCKS(MAX_THREADS, length));
+        __shared_copy_kernel_map<Dtype, Itype>
+            <<<GET_BLOCKS(nthreads, MAX_THREADS), MAX_THREADS,
+               GET_BLOCKS(MAX_THREADS, length) * sizeof(unsigned int)>>>(
+                dst, src, map, nthreads, length);
+      }
+      else
+      {
+        LOG_DEBUG("Blocks:", GET_BLOCKS(nthreads, MAX_THREADS),
+                  "Threads:", MAX_THREADS,
+                  "Shared:", GET_BLOCKS(length, MAX_THREADS));
+        __shared_copy_kernel_map<Dtype, Itype>
+            <<<GET_BLOCKS(nthreads, MAX_THREADS), MAX_THREADS,
+               GET_BLOCKS(length, MAX_THREADS) * sizeof(unsigned int)>>>(
+                dst, src, map, nthreads, length);
+      }
+    }
 
-template <typename Dtype, typename Itype>
-void shared_accumulate_kernel_map(Dtype *dst, const Dtype *const src,
-                                  const Itype *const map, const Itype nthreads,
-                                  const Itype length) {
-  constexpr Itype MAX_THREADS = 512;
-  if (MAX_THREADS >= length)
-    __shared_accumulate_kernel_map<Dtype, Itype>
-        <<<GET_BLOCKS(nthreads, MAX_THREADS), MAX_THREADS,
-           GET_BLOCKS(MAX_THREADS, length) * sizeof(unsigned int)>>>(
-            dst, src, map, nthreads, length);
-  else
-    __shared_accumulate_kernel_map<Dtype, Itype>
-        <<<GET_BLOCKS(nthreads, MAX_THREADS), MAX_THREADS,
-           GET_BLOCKS(length, MAX_THREADS) * sizeof(unsigned int)>>>(
-            dst, src, map, nthreads, length);
-}
+    template <typename Dtype, typename Itype>
+    void shared_accumulate_kernel_map(Dtype *dst, const Dtype *const src,
+                                      const Itype *const map, const Itype nthreads,
+                                      const Itype length)
+    {
+      constexpr Itype MAX_THREADS = 512;
+      if (MAX_THREADS >= length)
+        __shared_accumulate_kernel_map<Dtype, Itype>
+            <<<GET_BLOCKS(nthreads, MAX_THREADS), MAX_THREADS,
+               GET_BLOCKS(MAX_THREADS, length) * sizeof(unsigned int)>>>(
+                dst, src, map, nthreads, length);
+      else
+        __shared_accumulate_kernel_map<Dtype, Itype>
+            <<<GET_BLOCKS(nthreads, MAX_THREADS), MAX_THREADS,
+               GET_BLOCKS(length, MAX_THREADS) * sizeof(unsigned int)>>>(
+                dst, src, map, nthreads, length);
+    }
 
-} // end namespace detail
+  } // end namespace detail
 
 } // end namespace minkowski
 

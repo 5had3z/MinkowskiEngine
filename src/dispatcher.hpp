@@ -10,18 +10,20 @@
 #include <c10/util/complex.h>
 #include <c10/util/string_view.h>
 
-namespace minkowski {
+namespace minkowski
+{
 
-#define MINK_PRIVATE_CASE_TYPE_USING_HINT(NAME, enum_type, type, HINT, ...)    \
-  case enum_type: {                                                            \
-    using HINT = type;                                                         \
-    return __VA_ARGS__();                                                      \
+#define MINK_PRIVATE_CASE_TYPE_USING_HINT(NAME, enum_type, type, HINT, ...) \
+  case enum_type:                                                           \
+  {                                                                         \
+    using HINT = type;                                                      \
+    return __VA_ARGS__();                                                   \
   }
 
-#define MINK_PRIVATE_CASE_TYPE(NAME, enum_type, type, HINT, ...)               \
+#define MINK_PRIVATE_CASE_TYPE(NAME, enum_type, type, HINT, ...) \
   MINK_PRIVATE_CASE_TYPE_USING_HINT(NAME, enum_type, type, HINT, __VA_ARGS__)
 
-#define MINK_DISPATCH_INTEGER_TYPES(TYPE, HINT, NAME, ...)                     \
+#define MINK_DISPATCH_INTEGER_TYPES(TYPE, HINT, NAME, ...) \
   [&] {                                                                        \
     const auto &the_type = TYPE;                                               \
     /* don't use TYPE again in case it is an expensive or side-effect op */    \
@@ -33,7 +35,6 @@ namespace minkowski {
                              __VA_ARGS__)                                      \
     default:                                                                   \
       AT_ERROR(#NAME, " not implemented for '", toString(_it), "'");           \
-    }                                                                          \
-  }()
+    } }()
 
 } // namespace minkowski

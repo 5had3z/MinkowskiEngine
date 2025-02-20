@@ -17,15 +17,17 @@
 #ifndef MANAGED_CUH
 #define MANAGED_CUH
 
-#include <new>
 #include <cassert>
+#include <new>
 
-struct managed {
+struct managed
+{
   static void *operator new(size_t n)
   {
-    void *ptr          = 0;
+    void *ptr = 0;
     cudaError_t result = cudaMallocManaged(&ptr, n);
-    if (cudaSuccess != result || 0 == ptr) throw std::bad_alloc();
+    if (cudaSuccess != result || 0 == ptr)
+      throw std::bad_alloc();
     return ptr;
   }
 
@@ -45,4 +47,4 @@ inline bool isPtrManaged(cudaPointerAttributes attr)
 #endif
 }
 
-#endif  // MANAGED_CUH
+#endif // MANAGED_CUH
