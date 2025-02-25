@@ -25,6 +25,8 @@ add_library(
   src/convolution_gpu.cu
   src/depthwise_convolution_kernel.cu
   src/depthwise_convolution_gpu.cu
+  src/depthwise_convolution2_kernel.cu
+  src/depthwise_convolution2_gpu.cu
   src/convolution_transpose_gpu.cu
   src/pooling_avg_kernel.cu
   src/pooling_max_kernel.cu
