@@ -101,11 +101,6 @@ namespace minkowski
                 out_feat.size(1),           //
                 kernel.data_ptr<float>(),   //
                 in_out,                     //
-                in_feat.size(0),            //
-                out_nrows,                  //
-                byte_allocator,             //
-                p_map_manager->algorithm(), //
-                convolution_mode,
                 stream);
         }
         return out_feat;
@@ -185,11 +180,6 @@ namespace minkowski
                 kernel.template data_ptr<float>(), //
                 grad_kernel.data_ptr<float>(),     //
                 in_out,                            //
-                in_feat.size(0),                   //
-                grad_out_feat.size(0),             //
-                byte_allocator,                    //
-                p_map_manager->algorithm(),        //
-                convolution_mode,                  //
                 stream);
         }
 

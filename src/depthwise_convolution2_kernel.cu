@@ -18,19 +18,30 @@ LICENSE file in the root directory of this source tree.
 #include <cuda/cmath>
 #include <torch/extension.h>
 
+#include <mma.h>
+
+constexpr int M = 16;
+constexpr int N = 16;
+constexpr int K = 8;
+
 namespace minkowski
 {
 
     namespace detail
     {
 
+        // Parallel over the y dimension where y has the ragged addressing over
+        // the spatial dimension the channel dimension is contiguous.
+        // For a convolution of [S,C] x [C], the output is [S]
+
         template <typename Dtype, typename Itype, int BLOCK_SIZE>
         __global__ void
-        matmulDwconv(const Dtype *__restrict__ A, const int wA, const int hA, //
-                     const Dtype *__restrict__ B, const int wB, const int hB, //
-                     Dtype *__restrict__ C,                                   //
+        matmulDwconv(const Dtype *__restrict__ A, const int num_channel, const int num_element, //
+                     const Dtype *__restrict__ B,
+                     Dtype *__restrict__ C,
                      const Itype *__restrict__ in_map, const Itype *__restrict__ out_map)
         {
+#ifdef __CUDA_AMPERE_MMA__
             // Use in_feat as A and kernel as B
 
             // Block index
@@ -41,16 +52,131 @@ namespace minkowski
             const int tx = threadIdx.x;
             const int ty = threadIdx.y;
 
-            // Coordinate. x is for rows, y is for columns.
+            // Coordinate. x is for channels, y is for spatial.
             const int x = BLOCK_SIZE * bx + tx;
             const int y = BLOCK_SIZE * by + ty;
 
-            const Itype in_row = y < hA ? in_map[y] : 0;
-            const Itype out_row = y < hA ? out_map[y] : 0;
+            const Itype in_row = y < num_element ? in_map[y] : 0;
+            const Itype out_row = y < num_element ? out_map[y] : 0;
 
-            if (y < hA && x < wB)
-                atomicAdd(&C[wB * out_row + x], A[wA * in_row + x] * B[x]);
+            nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, M, N, K, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major> a_frag;
+            nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, M, N, K, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major> b_frag;
+            nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, float> c_frag;
+            nvcuda::wmma::fill_fragment(c_frag, 0.0f);
+            if (y < num_element && x < num_channel)
+            {
+                nvcuda::wmma::load_matrix_sync(a_frag, &A[num_channel * out_row], num_channel);
+                // atomicAdd(&C[num_channel * out_row + x], A[num_channel * in_row + x] * B[x]);
+            }
+#else
+            assert(false && "Only supports ampere or greater");
+#endif
         }
+
+    } // namespace detail
+
+    template <typename Dtype, typename Itype, typename ByteAllocator>
+    void DepthwiseConvolution2ForwardKernelGPU(
+        Dtype const *d_in_feat,                      //
+        default_types::size_type const in_nchannel,  //
+        Dtype *d_out_feat,                           //
+        default_types::size_type const out_nchannel, //
+        Dtype *d_kernel, gpu_kernel_map<Itype, ByteAllocator> const &kernel_map,
+        cudaStream_t stream)
+    {
+        TORCH_CHECK(in_nchannel == out_nchannel, "Input and output channels must be the same for depthwise convolution.");
+        size_t n_active_in_volume, thread_dim = -1;
+        // Define the shared memory size
+        if ((in_nchannel > 16 && out_nchannel > 16 &&
+             in_nchannel * out_nchannel >= 512) ||
+            (in_nchannel > 24 && out_nchannel > 24))
+            thread_dim = 32;
+        else if (in_nchannel % 24 == 0 && out_nchannel % 24 == 0)
+            thread_dim = 24;
+        else if ((in_nchannel > 8 && out_nchannel > 8) ||
+                 (in_nchannel % 16 == 0 && out_nchannel % 16 == 0))
+            thread_dim = 16;
+        else
+            thread_dim = 8;
+
+        dim3 threads(thread_dim, thread_dim);
+
+        // Iterate through each spatial kernel and get indices for in_map and out_map
+        for (auto it = kernel_map.key_cbegin(); it != kernel_map.key_cend(); ++it)
+        {
+            auto const k = it->first;
+            n_active_in_volume = kernel_map.size(k);
+            if (n_active_in_volume == 0)
+                continue;
+
+            size_t const num_grid = cuda::ceil_div(n_active_in_volume, thread_dim);
+            size_t const num_div = cuda::ceil_div(num_grid, static_cast<size_t>(MAX_GRID)); // so big probably doesn't loop
+            size_t const step = cuda::ceil_div(n_active_in_volume, num_div);
+
+            for (size_t s = 0; s < num_div; s++)
+            {
+                size_t const offset = step * s;
+                size_t const remainder = n_active_in_volume - offset;
+                size_t const curr_num_active = remainder < step ? remainder : step;
+                dim3 const grid(cuda::ceil_div(out_nchannel, threads.x),
+                                cuda::ceil_div(static_cast<unsigned int>(curr_num_active), threads.y));
+
+                switch (thread_dim)
+                {
+                case 32:
+                    detail::matmulDwconv<Dtype, Itype, 32><<<grid, threads, 0, stream>>>(
+                        d_in_feat, in_nchannel, curr_num_active,
+                        &d_kernel[k * in_nchannel],
+                        d_out_feat, kernel_map.in_maps.begin(k) + offset,
+                        kernel_map.out_maps.begin(k) + offset);
+                    break;
+                case 24:
+                    detail::matmulDwconv<Dtype, Itype, 24><<<grid, threads, 0, stream>>>(
+                        d_in_feat, in_nchannel, curr_num_active,
+                        &d_kernel[k * in_nchannel],
+                        d_out_feat, kernel_map.in_maps.begin(k) + offset,
+                        kernel_map.out_maps.begin(k) + offset);
+                    break;
+                case 16:
+                    detail::matmulDwconv<Dtype, Itype, 16><<<grid, threads, 0, stream>>>(
+                        d_in_feat, in_nchannel, curr_num_active,
+                        &d_kernel[k * in_nchannel],
+                        d_out_feat, kernel_map.in_maps.begin(k) + offset,
+                        kernel_map.out_maps.begin(k) + offset);
+                    break;
+                case 8:
+                    detail::matmulDwconv<Dtype, Itype, 8><<<grid, threads, 0, stream>>>(
+                        d_in_feat, in_nchannel, curr_num_active,
+                        &d_kernel[k * in_nchannel],
+                        d_out_feat, kernel_map.in_maps.begin(k) + offset,
+                        kernel_map.out_maps.begin(k) + offset);
+                    break;
+                }
+            }
+            CUDA_CHECK(cudaGetLastError());
+        }
+    }
+
+    // default_allocator
+    template void
+    DepthwiseConvolution2ForwardKernelGPU<float, uint32_t, detail::default_allocator<char>>(
+        float const *d_in_feat, default_types::size_type const in_nchannel,
+        float *d_out_feat, default_types::size_type const out_nchannel,
+        float *d_kernel,
+        gpu_kernel_map<uint32_t, detail::default_allocator<char>> const &kernel_map,
+        cudaStream_t stream);
+
+    // c10_allocator
+    template void
+    DepthwiseConvolution2ForwardKernelGPU<float, uint32_t, detail::c10_allocator<char>>(
+        float const *d_in_feat, default_types::size_type const in_nchannel,
+        float *d_out_feat, default_types::size_type const out_nchannel,
+        float *d_kernel,
+        gpu_kernel_map<uint32_t, detail::c10_allocator<char>> const &kernel_map,
+        cudaStream_t stream);
+
+    namespace detail
+    {
         /**
          * Matrix multiplication (CUDA Kernel) on the device: C = A * B^T, E = D^T * A
          * wA is A's width and wB is B's width
@@ -123,122 +249,8 @@ namespace minkowski
                    wD * in_row + x);
 #endif
         }
+
     } // namespace detail
-
-    template <typename Dtype, typename Itype, typename ByteAllocator>
-    void DepthwiseConvolution2ForwardKernelGPU(
-        Dtype const *d_in_feat,                      //
-        default_types::size_type const in_nchannel,  //
-        Dtype *d_out_feat,                           //
-        default_types::size_type const out_nchannel, //
-        Dtype *d_kernel, gpu_kernel_map<Itype, ByteAllocator> const &kernel_map,
-        default_types::size_type const in_nrows,      //
-        default_types::size_type const out_nrows,     //
-        ByteAllocator &allocator,                     //
-        MinkowskiAlgorithm::Mode const algo_index,    //
-        ConvolutionMode::Type const convolution_mode, //
-        cudaStream_t stream)
-    {
-        size_t n_active_in_volume, shared_mem_size = -1;
-        // Define the shared memory size
-        if ((in_nchannel > 16 && out_nchannel > 16 &&
-             in_nchannel * out_nchannel >= 512) ||
-            (in_nchannel > 24 && out_nchannel > 24))
-            shared_mem_size = 32;
-        else if (in_nchannel % 24 == 0 && out_nchannel % 24 == 0)
-            shared_mem_size = 24;
-        else if ((in_nchannel > 8 && out_nchannel > 8) ||
-                 (in_nchannel % 16 == 0 && out_nchannel % 16 == 0))
-            shared_mem_size = 16;
-        else
-            shared_mem_size = 8;
-
-        dim3 threads(shared_mem_size, shared_mem_size);
-
-        // Iterate through each spatial kernel and get indices for in_map and
-        // out_map
-        for (auto it = kernel_map.key_cbegin(); it != kernel_map.key_cend(); ++it)
-        {
-            auto const k = it->first;
-            n_active_in_volume = kernel_map.size(k);
-            if (n_active_in_volume == 0)
-                continue;
-
-            size_t const num_grid = cuda::ceil_div(n_active_in_volume, shared_mem_size);
-            size_t const num_div = cuda::ceil_div(num_grid, static_cast<size_t>(MAX_GRID));
-            size_t const step = cuda::ceil_div(n_active_in_volume, num_div);
-
-            for (size_t s = 0; s < num_div; s++)
-            {
-                size_t const offset = step * s;
-                size_t const remainder = n_active_in_volume - offset;
-                size_t const curr_num_active = remainder < step ? remainder : step;
-                dim3 const grid(cuda::ceil_div(out_nchannel, threads.x),
-                                cuda::ceil_div(static_cast<unsigned int>(curr_num_active), threads.y));
-
-                switch (shared_mem_size)
-                {
-                case 32:
-                    detail::matmulDwconv<Dtype, Itype, 32><<<grid, threads, 0, stream>>>(
-                        d_in_feat, in_nchannel, curr_num_active,
-                        &d_kernel[k * in_nchannel], out_nchannel,
-                        1, d_out_feat, kernel_map.in_maps.begin(k) + offset,
-                        kernel_map.out_maps.begin(k) + offset);
-                    break;
-                case 24:
-                    detail::matmulDwconv<Dtype, Itype, 24><<<grid, threads, 0, stream>>>(
-                        d_in_feat, in_nchannel, curr_num_active,
-                        &d_kernel[k * in_nchannel], out_nchannel,
-                        1, d_out_feat, kernel_map.in_maps.begin(k) + offset,
-                        kernel_map.out_maps.begin(k) + offset);
-                    break;
-                case 16:
-                    detail::matmulDwconv<Dtype, Itype, 16><<<grid, threads, 0, stream>>>(
-                        d_in_feat, in_nchannel, curr_num_active,
-                        &d_kernel[k * in_nchannel], out_nchannel,
-                        1, d_out_feat, kernel_map.in_maps.begin(k) + offset,
-                        kernel_map.out_maps.begin(k) + offset);
-                    break;
-                case 8:
-                    detail::matmulDwconv<Dtype, Itype, 8><<<grid, threads, 0, stream>>>(
-                        d_in_feat, in_nchannel, curr_num_active,
-                        &d_kernel[k * in_nchannel], out_nchannel,
-                        1, d_out_feat, kernel_map.in_maps.begin(k) + offset,
-                        kernel_map.out_maps.begin(k) + offset);
-                    break;
-                }
-            }
-            CUDA_CHECK(cudaGetLastError());
-        }
-    }
-
-    // default_allocator
-    template void
-    DepthwiseConvolution2ForwardKernelGPU<float, uint32_t, detail::default_allocator<char>>(
-        float const *d_in_feat, default_types::size_type const in_nchannel,
-        float *d_out_feat, default_types::size_type const out_nchannel,
-        float *d_kernel,
-        gpu_kernel_map<uint32_t, detail::default_allocator<char>> const &kernel_map,
-        default_types::size_type const in_nrows, //
-        default_types::size_type const out_nrows,
-        detail::default_allocator<char> &allocator, //
-        MinkowskiAlgorithm::Mode const algo_index,  //
-        ConvolutionMode::Type const convolution_mode,
-        cudaStream_t stream);
-
-    // c10_allocator
-    template void
-    DepthwiseConvolution2ForwardKernelGPU<float, uint32_t, detail::c10_allocator<char>>(
-        float const *d_in_feat, default_types::size_type const in_nchannel,
-        float *d_out_feat, default_types::size_type const out_nchannel,
-        float *d_kernel,
-        gpu_kernel_map<uint32_t, detail::c10_allocator<char>> const &kernel_map,
-        default_types::size_type const in_nrows, //
-        default_types::size_type const out_nrows,
-        detail::c10_allocator<char> &allocator,    //
-        MinkowskiAlgorithm::Mode const algo_index, //
-        ConvolutionMode::Type const convolution_mode,
-        cudaStream_t stream);
 
     // Backward
     template <typename Dtype, typename Itype, typename ByteAllocator>
@@ -249,11 +261,6 @@ namespace minkowski
         default_types::size_type const out_nchannel,                       //
         Dtype const *d_kernel, Dtype *d_grad_kernel,                       //
         gpu_kernel_map<Itype, ByteAllocator> const &kernel_map,            //
-        default_types::size_type const in_nrows,                           //
-        default_types::size_type const out_nrows,                          //
-        ByteAllocator &allocator,                                          //
-        MinkowskiAlgorithm::Mode const algo_index,                         //
-        ConvolutionMode::Type const convolution_mode,
         cudaStream_t stream)
     {
 
@@ -378,15 +385,9 @@ namespace minkowski
         float const *d_in_feat, float *d_grad_in_feat,
         default_types::size_type const in_nchannel, //
         float const *d_grad_out_feat,
-        default_types::size_type const out_nchannel, //
-        float const *d_kernel, float *p_grad_kernel, //
-        gpu_kernel_map<uint32_t, detail::default_allocator<char>> const
-            &kernel_map,                            //
-        default_types::size_type const in_nrows,    //
-        default_types::size_type const out_nrows,   //
-        detail::default_allocator<char> &allocator, //
-        MinkowskiAlgorithm::Mode const algo_index,  //
-        ConvolutionMode::Type const convolution_mode,
+        default_types::size_type const out_nchannel,                                 //
+        float const *d_kernel, float *p_grad_kernel,                                 //
+        gpu_kernel_map<uint32_t, detail::default_allocator<char>> const &kernel_map, //
         cudaStream_t stream);
 
     // c10_allocator
@@ -398,11 +399,6 @@ namespace minkowski
         default_types::size_type const out_nchannel,                             //
         float const *d_kernel, float *p_grad_kernel,                             //
         gpu_kernel_map<uint32_t, detail::c10_allocator<char>> const &kernel_map, //
-        default_types::size_type const in_nrows,                                 //
-        default_types::size_type const out_nrows,                                //
-        detail::c10_allocator<char> &allocator,                                  //
-        MinkowskiAlgorithm::Mode const algo_index,                               //
-        ConvolutionMode::Type const convolution_mode,
         cudaStream_t stream);
 
 } // namespace minkowski

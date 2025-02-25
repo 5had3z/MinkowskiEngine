@@ -125,6 +125,7 @@ SOURCE_SETS = {
             "convolution_kernel.cu",
             "convolution_gpu.cu",
             "depthwise_convolution_kernel.cu",
+            "depthwise_convolution2_kernel.cu",
             "depthwise_convolution_gpu.cu",
             "convolution_transpose_gpu.cu",
             "pooling_avg_kernel.cu",
@@ -165,7 +166,12 @@ else:
 
 
 CC_FLAGS += ["-O3"]
-NVCC_FLAGS += ["-O3", "-Xcompiler=-fno-gnu-unique"]
+NVCC_FLAGS += [
+    "-O3",
+    "-Xcompiler=-fno-gnu-unique",
+    "-gencode",
+    "arch=compute_86,code=sm_86",
+]
 
 if "MAX_JOBS" not in os.environ and os.cpu_count() > MAX_COMPILATION_THREADS:
     # Clip the num compilation thread to 8

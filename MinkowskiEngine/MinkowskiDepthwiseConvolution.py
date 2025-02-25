@@ -19,6 +19,13 @@ from MinkowskiCommon import MinkowskiModuleBase
 from MinkowskiCoordinateManager import CoordinateManager
 from MinkowskiKernelGenerator import KernelGenerator
 
+
+def should_use_v2(x: torch.Tensor, force_old: bool):
+    """Input is float, not forced to use v1, and device is Ampere or newer"""
+    major, _ = torch.cuda.get_device_capability(torch.cuda.current_device())
+    return x.dtype == torch.float32 and not force_old and major >= 8
+
+
 class MinkowskiDepthwiseConvolutionFunction(Function):
     @staticmethod
     def forward(
@@ -30,6 +37,7 @@ class MinkowskiDepthwiseConvolutionFunction(Function):
         in_coordinate_map_key: CoordinateMapKey,
         out_coordinate_map_key: CoordinateMapKey = None,
         coordinate_manager: CoordinateManager = None,
+        force_old: bool = True,
     ):
         if not input_features.is_cuda:
             raise NotImplementedError("Not implemented on the CPU")
@@ -47,9 +55,15 @@ class MinkowskiDepthwiseConvolutionFunction(Function):
             convolution_mode,
             in_coordinate_map_key,
             out_coordinate_map_key,
-            coordinate_manager
+            coordinate_manager,
+            force_old,
         ]
-        return _C.DepthwiseConvolutionForwardGPU(
+        if should_use_v2(input_features, force_old):
+            func = _C.DepthwiseConvolution2ForwardGPU
+        else:
+            func = _C.DepthwiseConvolutionForwardGPU
+
+        return func(
             ctx.input_features,
             kernel_weights,
             kernel_generator.kernel_size,
@@ -74,9 +88,15 @@ class MinkowskiDepthwiseConvolutionFunction(Function):
             in_coordinate_map_key,
             out_coordinate_map_key,
             coordinate_manager,
+            force_old,
         ) = ctx.misc
 
-        grad_in_feat, grad_kernel =  _C.DepthwiseConvolutionBackwardGPU(
+        if should_use_v2(ctx.input_features, force_old):
+            func = _C.DepthwiseConvolution2BackwardGPU
+        else:
+            func = _C.DepthwiseConvolutionBackwardGPU
+
+        grad_in_feat, grad_kernel = func(
             ctx.input_features,
             grad_out_feat,
             ctx.kernel_weights,
@@ -90,15 +110,8 @@ class MinkowskiDepthwiseConvolutionFunction(Function):
             out_coordinate_map_key,
             coordinate_manager._manager,
         )
-        return (
-            grad_in_feat,
-            grad_kernel,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
+        return (grad_in_feat, grad_kernel, None, None, None, None, None, None)
+
 
 class MinkowskiDepthwiseConvolution(MinkowskiModuleBase):
 
@@ -112,7 +125,8 @@ class MinkowskiDepthwiseConvolution(MinkowskiModuleBase):
         kernel_generator=None,
         convolution_mode=ConvolutionMode.DEFAULT,
         dimension=-1,
-        use_cuda_kernel=True
+        use_cuda_kernel=True,
+        force_old=False,
     ):
 
         super(MinkowskiDepthwiseConvolution, self).__init__()
@@ -127,12 +141,13 @@ class MinkowskiDepthwiseConvolution(MinkowskiModuleBase):
                 dilation=dilation,
                 dimension=dimension,
             )
-        
+
         self.in_channels = in_channels
-        
+
         self.kernel_generator = kernel_generator
         self.dimension = dimension
         self.use_cuda_kernel = use_cuda_kernel
+        self.force_old = force_old
 
         Tensor = torch.FloatTensor
         kernel_shape = (kernel_generator.kernel_volume, self.in_channels)
@@ -141,7 +156,7 @@ class MinkowskiDepthwiseConvolution(MinkowskiModuleBase):
         self.convolution_mode = convolution_mode
         self.conv = MinkowskiDepthwiseConvolutionFunction()
         self.reset_parameters()
-    
+
     def reset_parameters(self, is_transpose=False):
         with torch.no_grad():
             n = (
@@ -165,7 +180,7 @@ class MinkowskiDepthwiseConvolution(MinkowskiModuleBase):
             self.kernel_generator.kernel_dilation,
         )
         return self.__class__.__name__ + s
-    
+
     def forward(
         self,
         input: SparseTensor,
@@ -176,11 +191,9 @@ class MinkowskiDepthwiseConvolution(MinkowskiModuleBase):
         assert (
             self.in_channels == input.shape[1]
         ), f"Channel size mismatch {self.in_channels} != {input.shape[1]}"
-        
+
         cm = input._manager
-        out_key = _get_coordinate_map_key(
-            input, coordinates, None
-        )
+        out_key = _get_coordinate_map_key(input, coordinates, None)
         outfeat = self.conv.apply(
             input.F,
             self.kernel,
@@ -189,13 +202,12 @@ class MinkowskiDepthwiseConvolution(MinkowskiModuleBase):
             input.coordinate_map_key,
             out_key,
             cm,
+            self.force_old,
         )
         if self.bias is not None:
             outfeat += self.bias
-        return SparseTensor(
-            outfeat, 
-            coordinate_map_key=out_key, 
-            coordinate_manager=cm)
+        return SparseTensor(outfeat, coordinate_map_key=out_key, coordinate_manager=cm)
+
 
 if __name__ == "__main__":
     in_channels, out_channels, D = 2, 2, 1

@@ -27,11 +27,6 @@ namespace minkowski
         Dtype *d_out_feat,                           //
         default_types::size_type const out_nchannel, //
         Dtype *d_kernel, gpu_kernel_map<Itype, ByteAllocator> const &kernel_map,
-        default_types::size_type const in_nrows,      //
-        default_types::size_type const out_nrows,     //
-        ByteAllocator &allocator,                     //
-        MinkowskiAlgorithm::Mode const algo_index,    //
-        ConvolutionMode::Type const convolution_mode, //
         cudaStream_t stream);
 
     template <typename Dtype, typename Itype, typename ByteAllocator>
@@ -44,10 +39,5 @@ namespace minkowski
         Dtype const *d_kernel,                       //
         Dtype *d_grad_kernel,                        //
         gpu_kernel_map<Itype, ByteAllocator> const &kernel_map,
-        default_types::size_type const in_nrows,      //
-        default_types::size_type const out_nrows,     //
-        ByteAllocator &allocator,                     //
-        MinkowskiAlgorithm::Mode const algo_index,    //
-        ConvolutionMode::Type const convolution_mode, //
         cudaStream_t stream);
 } // end namespace minkowski
