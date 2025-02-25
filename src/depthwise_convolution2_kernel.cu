@@ -15,9 +15,22 @@ LICENSE file in the root directory of this source tree.
 #include <stdio.h>
 
 #include <ATen/cuda/CUDAUtils.h>
-#include <cuda/cmath>
 #include <torch/extension.h>
 
+#if CUDA_VERSION >= 12080
+#include <cuda/cmath>
+#else
+namespace cuda
+{
+    template <typename T>
+    constexpr typename std::enable_if<std::is_integral<T>::value, T>::type ceil_div(T a, T b)
+    {
+        return (a + b - 1) / b;
+    }
+}
+#endif
+
+#include <cute/tensor.hpp>
 #include <mma.h>
 
 constexpr int M = 16;
@@ -41,7 +54,7 @@ namespace minkowski
                      Dtype *__restrict__ C,
                      const Itype *__restrict__ in_map, const Itype *__restrict__ out_map)
         {
-#ifdef __CUDA_AMPERE_MMA__
+#if __CUDA_ARCH__ >= 800
             // Use in_feat as A and kernel as B
 
             // Block index

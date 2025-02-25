@@ -61,7 +61,7 @@ MAX_COMPILATION_THREADS = 12
 Extension = CUDAExtension
 extra_link_args = []
 include_dirs = []
-libraries = []
+libraries = ["openblas"]
 CC_FLAGS = []
 NVCC_FLAGS = []
 
@@ -125,8 +125,9 @@ SOURCE_SETS = {
             "convolution_kernel.cu",
             "convolution_gpu.cu",
             "depthwise_convolution_kernel.cu",
-            "depthwise_convolution2_kernel.cu",
             "depthwise_convolution_gpu.cu",
+            "depthwise_convolution2_kernel.cu",
+            "depthwise_convolution2_gpu.cu",
             "convolution_transpose_gpu.cu",
             "pooling_avg_kernel.cu",
             "pooling_max_kernel.cu",
@@ -164,13 +165,15 @@ if "CC" in os.environ or "CXX" in os.environ:
 else:
     print("Using the default compiler")
 
+from cutlass_library import source_path
 
-CC_FLAGS += ["-O3"]
+CC_FLAGS += ["-O1", f"-I{source_path}/include", "-g"]
 NVCC_FLAGS += [
-    "-O3",
+    "-O1",
     "-Xcompiler=-fno-gnu-unique",
     "-gencode",
     "arch=compute_86,code=sm_86",
+    f"-I{source_path}/include",
 ]
 
 if "MAX_JOBS" not in os.environ and os.cpu_count() > MAX_COMPILATION_THREADS:
@@ -199,7 +202,7 @@ ext_modules = [
 setup(
     name="MinkowskiEngine",
     version=find_version("MinkowskiEngine", "__init__.py"),
-    install_requires=["torch", "numpy"],
+    install_requires=["torch", "numpy", "nvidia-cutlass"],
     packages=["MinkowskiEngine", "MinkowskiEngine.utils", "MinkowskiEngine.modules"],
     package_dir={"MinkowskiEngine": "./MinkowskiEngine"},
     ext_modules=ext_modules,

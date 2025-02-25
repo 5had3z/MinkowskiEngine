@@ -6,19 +6,19 @@ set(CUDA_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_ARCHITECTURES 86)
 
-# include(CPM.cmake)
+include(CPM.cmake)
 
 # Find CUDA
 find_package(Python REQUIRED COMPONENTS Development)
-find_package(Torch REQUIRED HINTS
-             "/usr/local/lib/python3.12/dist-packages/torch/share/cmake/Torch")
+find_package(Torch REQUIRED HINTS ${TORCH_PATH}/share/cmake/Torch)
 
+set(CUTLASS_ENABLE_HEADERS_ONLY ON)
 
-# # Grab CUTLASS
-# CPMAddPackage(
-#   NAME CUTLASS
-#   GITHUB_REPOSITORY NVIDIA/cutlass
-#   VERSION 3.8.0)
+# Grab CUTLASS
+CPMAddPackage(
+  NAME CUTLASS
+  GITHUB_REPOSITORY NVIDIA/cutlass
+  VERSION 3.8.0)
 
 # set(CUTLASS_NVCC_ARCHS 86)
 
@@ -70,4 +70,4 @@ set_target_properties(
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE src/3rdparty)
 
 # Link CUDA libraries
-target_link_libraries(${PROJECT_NAME} PUBLIC ${TORCH_LIBRARIES} Python::Python)
+target_link_libraries(${PROJECT_NAME} PUBLIC ${TORCH_LIBRARIES} Python::Python CUTLASS)
