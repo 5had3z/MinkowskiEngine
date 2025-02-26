@@ -239,9 +239,11 @@ class SparseTensor(Tensor):
                 if coordinate_manager is None:
                     coordinate_manager = CoordinateManager(
                         D=self._D,
-                        coordinate_map_type=CoordinateMapType.CUDA
-                        if coordinates.is_cuda
-                        else CoordinateMapType.CPU,
+                        coordinate_map_type=(
+                            CoordinateMapType.CUDA
+                            if coordinates.is_cuda
+                            else CoordinateMapType.CPU
+                        ),
                         allocator_type=allocator_type,
                         minkowski_algorithm=minkowski_algorithm,
                     )
@@ -249,9 +251,11 @@ class SparseTensor(Tensor):
             else:
                 coordinate_manager = CoordinateManager(
                     D=coordinates.size(1) - 1,
-                    coordinate_map_type=CoordinateMapType.CUDA
-                    if coordinates.is_cuda
-                    else CoordinateMapType.CPU,
+                    coordinate_map_type=(
+                        CoordinateMapType.CUDA
+                        if coordinates.is_cuda
+                        else CoordinateMapType.CPU
+                    ),
                     allocator_type=allocator_type,
                     minkowski_algorithm=minkowski_algorithm,
                 )
@@ -766,11 +770,10 @@ def _get_coordinate_map_key(
                 convert_to_int_list(tensor_stride, coordinates.size(1) - 1), ""
             )
 
-            (
-                coordinate_map_key,
-                (unique_index, inverse_mapping),
-            ) = input._manager.insert_and_map(
-                coordinates, *coordinate_map_key.get_key()
+            coordinate_map_key, (unique_index, inverse_mapping) = (
+                input._manager.insert_and_map(
+                    coordinates, *coordinate_map_key.get_key()
+                )
             )
         elif isinstance(coordinates, SparseTensor):
             coordinate_map_key = coordinates.coordinate_map_key

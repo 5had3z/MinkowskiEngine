@@ -65,20 +65,21 @@ namespace minkowski
             const int tx = threadIdx.x;
             const int ty = threadIdx.y;
 
-            // Coordinate. x is for channels, y is for spatial.
-            const int x = BLOCK_SIZE * bx + tx;
-            const int y = BLOCK_SIZE * by + ty;
+            const int x = BLOCK_SIZE * bx + tx; // channel index
+            const int y = BLOCK_SIZE * by + ty; // spatial index
 
             const Itype in_row = y < num_element ? in_map[y] : 0;
             const Itype out_row = y < num_element ? out_map[y] : 0;
 
-            nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, M, N, K, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major> a_frag;
-            nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, M, N, K, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major> b_frag;
-            nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, float> c_frag;
-            nvcuda::wmma::fill_fragment(c_frag, 0.0f);
+            // nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, M, N, K, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major> a_frag;
+            // nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, M, N, K, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major> b_frag;
+            // nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, float> c_frag;
+            // nvcuda::wmma::fill_fragment(c_frag, 0.0f);
             if (y < num_element && x < num_channel)
             {
-                nvcuda::wmma::load_matrix_sync(a_frag, &A[num_channel * out_row], num_channel);
+                // nvcuda::wmma::load_matrix_sync(a_frag, &A[num_channel * out_row], num_channel);
+                auto &out = C[num_channel * out_row + x];
+                out = __fmaf_rn(A[num_channel * in_row + x], B[x], out);
                 // atomicAdd(&C[num_channel * out_row + x], A[num_channel * in_row + x] * B[x]);
             }
 #else
@@ -114,6 +115,8 @@ namespace minkowski
 
         dim3 threads(thread_dim, thread_dim);
 
+        TORCH_WARN("num kernels: " + std::to_string(std::distance(kernel_map.key_cbegin(), kernel_map.key_cend())));
+
         // Iterate through each spatial kernel and get indices for in_map and out_map
         for (auto it = kernel_map.key_cbegin(); it != kernel_map.key_cend(); ++it)
         {
@@ -126,6 +129,7 @@ namespace minkowski
             size_t const num_div = cuda::ceil_div(num_grid, static_cast<size_t>(MAX_GRID)); // so big probably doesn't loop
             size_t const step = cuda::ceil_div(n_active_in_volume, num_div);
 
+            TORCH_WARN("num_grid:" + std::to_string(num_grid) + " num_div:" + std::to_string(num_div) + " step:" + std::to_string(step));
             for (size_t s = 0; s < num_div; s++)
             {
                 size_t const offset = step * s;
