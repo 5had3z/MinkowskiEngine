@@ -61,7 +61,7 @@ MAX_COMPILATION_THREADS = 12
 Extension = CUDAExtension
 extra_link_args = []
 include_dirs = []
-libraries = []
+libraries = ["openblas"]
 CC_FLAGS = []
 NVCC_FLAGS = []
 
